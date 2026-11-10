@@ -3,9 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppShell } from "@/components/AppShell";
 import FileDrawer from "@/components/FileDrawer";
+import ModelMenu from "@/components/ModelMenu";
 import { useProvider } from "@/components/ProviderContext";
+import { isLocalEndpoint } from "@/lib/endpoints";
 import { isDemo, providerLabel } from "@/lib/providers";
 import type { ChatMessage, ProjectData, ToolEvent } from "@/lib/types";
+
+function formatSize(bytes: number): string {
+  return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
+}
 
 function updateLast(
   messages: ChatMessage[],
@@ -42,6 +48,9 @@ export default function Builder({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"chat" | "preview">("chat");
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [panel, setPanel] = useState<"preview" | "code" | "files" | "console">("preview");
+  const [codeFile, setCodeFile] = useState<string | null>(null);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -76,6 +85,7 @@ export default function Builder({
     if (!text || streaming) return;
 
     const config = provider;
+    setModelMenuOpen(false);
     setInput("");
     setStreaming(true);
     setMessages((previous) => [
@@ -207,6 +217,18 @@ export default function Builder({
 
   const files = project?.files ?? [];
   const busy = streaming;
+  const activeCode = files.find((file) => file.path === codeFile) ?? files[0];
+  const consoleEntries = messages.flatMap((message, messageIndex) => [
+    ...(message.tools ?? []).map((tool) => ({
+      key: `${messageIndex}-${tool.name}-${tool.path ?? tool.message}`,
+      kind: tool.ok ? "ok" : "warn",
+      text: `${tool.name} · ${tool.message}`,
+      path: tool.path,
+    })),
+    ...(message.error
+      ? [{ key: `${messageIndex}-error`, kind: "bad", text: message.error, path: undefined }]
+      : []),
+  ]);
 
   return (
     <div className="builder">
@@ -243,14 +265,7 @@ export default function Builder({
             </button>
           </div>
 
-          <button
-            type="button"
-            className="ghost-btn"
-            onClick={() => {
-              setDrawerFile(null);
-              setFilesOpen(true);
-            }}
-          >
+          <button type="button" className="ghost-btn" onClick={() => setPanel("files")}>
             Files
           </button>
           <button type="button" className="model-pill" onClick={openSettings}>
@@ -403,13 +418,30 @@ export default function Builder({
               aria-label="Message Cygnus"
             />
             <div className="composer-row">
-              <button type="button" className="composer-model" onClick={openSettings}>
-                <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
-                <span className="composer-model-label">{providerLabel(provider)}</span>
-                <span aria-hidden="true" className="composer-model-caret">
-                  ⌄
-                </span>
-              </button>
+              <div className="composer-model-wrap">
+                <button
+                  type="button"
+                  className="composer-model"
+                  aria-expanded={modelMenuOpen}
+                  aria-haspopup="dialog"
+                  onClick={() => setModelMenuOpen((value) => !value)}
+                >
+                  <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
+                  <span className="composer-model-label">{providerLabel(provider)}</span>
+                  <span aria-hidden="true" className="composer-model-caret">
+                    ⌄
+                  </span>
+                </button>
+                {modelMenuOpen ? (
+                  <ModelMenu
+                    onClose={() => setModelMenuOpen(false)}
+                    onManage={() => {
+                      setModelMenuOpen(false);
+                      openSettings();
+                    }}
+                  />
+                ) : null}
+              </div>
               {busy ? (
                 <button
                   type="button"
@@ -444,49 +476,168 @@ export default function Builder({
 
         <section className="preview-col">
           <div className="preview-bar">
-            <span className="preview-title">Preview</span>
+            <div className="panel-tabs" role="tablist" aria-label="Workspace panels">
+              {(
+                [
+                  ["preview", "Preview"],
+                  ["code", "Code"],
+                  ["files", "Files"],
+                  ["console", "Console"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={panel === id}
+                  className={panel === id ? "active" : ""}
+                  onClick={() => setPanel(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <div className="preview-actions">
-              <div className="device-switch" role="group" aria-label="Preview size">
-                {(["desktop", "tablet", "mobile"] as const).map((size) => (
+              {panel === "preview" ? (
+                <>
+                  <div className="device-switch" role="group" aria-label="Preview size">
+                    {(["desktop", "tablet", "mobile"] as const).map((size) => (
+                      <button
+                        key={size}
+                        type="button"
+                        className={device === size ? "active" : ""}
+                        onClick={() => setDevice(size)}
+                      >
+                        {size[0].toUpperCase() + size.slice(1)}
+                      </button>
+                    ))}
+                  </div>
                   <button
-                    key={size}
                     type="button"
-                    className={device === size ? "active" : ""}
-                    onClick={() => setDevice(size)}
+                    onClick={() => setRelease((value) => value + 1)}
+                    title="Reload preview"
                   >
-                    {size[0].toUpperCase() + size.slice(1)}
+                    Reload
                   </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => setRelease((value) => value + 1)}
-                title="Reload preview"
-              >
-                Reload
-              </button>
-              <a
-                href={`/api/preview/${projectId}/index.html`}
-                target="_blank"
-                rel="noreferrer"
-                title="Open preview in a new tab"
-              >
-                Open
-              </a>
+                  <a
+                    href={`/api/preview/${projectId}/index.html`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="Open preview in a new tab"
+                  >
+                    Open
+                  </a>
+                </>
+              ) : (
+                <span className="panel-count">
+                  {panel === "code" || panel === "files"
+                    ? `${files.length} files`
+                    : `${consoleEntries.length} events`}
+                </span>
+              )}
             </div>
           </div>
-          <div className={`preview-frame-wrap ${device}`}>
-            {busy ? <div className="preview-building">Building…</div> : null}
-            <iframe
-              key={release}
-              src={`/api/preview/${projectId}/index.html?v=${release}`}
-              title="Live app preview"
-              className="preview-frame"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
-            />
-          </div>
+          {panel === "preview" ? (
+            <div className={`preview-frame-wrap ${device}`}>
+              {busy ? <div className="preview-building">Building…</div> : null}
+              <iframe
+                key={release}
+                src={`/api/preview/${projectId}/index.html?v=${release}`}
+                title="Live app preview"
+                className="preview-frame"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
+              />
+            </div>
+          ) : null}
+
+          {panel === "code" ? (
+            <div className="code-panel">
+              <ul className="code-files" aria-label="Files">
+                {files.map((file) => (
+                  <li key={file.path}>
+                    <button
+                      type="button"
+                      className={file.path === activeCode?.path ? "active" : ""}
+                      onClick={() => setCodeFile(file.path)}
+                    >
+                      {file.path}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="code-view">
+                <div className="code-head">{activeCode?.path ?? "No file selected"}</div>
+                <pre>{activeCode?.content ?? "Ask Cygnus to write something."}</pre>
+              </div>
+            </div>
+          ) : null}
+
+          {panel === "files" ? (
+            <div className="files-panel">
+              {files.length === 0 ? (
+                <p className="panel-empty">No files yet. Ask Cygnus to build something.</p>
+              ) : (
+                <div className="files-grid">
+                  {files.map((file) => (
+                    <button
+                      key={file.path}
+                      type="button"
+                      onClick={() => {
+                        setCodeFile(file.path);
+                        setPanel("code");
+                      }}
+                    >
+                      <strong>{file.path}</strong>
+                      <span>{formatSize(file.size)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {panel === "console" ? (
+            <div className="console-panel">
+              {consoleEntries.length === 0 ? (
+                <p className="panel-empty">
+                  Tool calls and errors from this chat show up here.
+                </p>
+              ) : (
+                consoleEntries.map((entry) => (
+                  <button
+                    key={entry.key}
+                    type="button"
+                    className={`console-row ${entry.kind}`}
+                    disabled={!entry.path}
+                    onClick={() => {
+                      if (!entry.path) return;
+                      setCodeFile(entry.path);
+                      setPanel("code");
+                    }}
+                  >
+                    <span className="console-kind">{entry.kind === "ok" ? "✓" : "!"}</span>
+                    <span>{entry.text}</span>
+                    {entry.path ? <code>{entry.path}</code> : null}
+                  </button>
+                ))
+              )}
+            </div>
+          ) : null}
         </section>
       </main>
+
+      <footer className="builder-status">
+        <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
+        <span>{providerLabel(provider)}</span>
+        <span className="status-sep" />
+        <span className="status-model">{provider.model}</span>
+        <span className="status-sep" />
+        <span>{files.length} files</span>
+        <span className="status-right">
+          {isDemo(provider) ? "Demo" : isLocalEndpoint(provider.baseUrl) ? "Local" : "Cloud"} ·{" "}
+          {panel}
+        </span>
+      </footer>
 
       <FileDrawer
         files={files}

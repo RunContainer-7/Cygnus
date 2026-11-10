@@ -7,6 +7,7 @@ import type { ProviderConfig } from "@/lib/types";
 
 type ProviderContextValue = {
   provider: ProviderConfig;
+  chooseProvider: (next: ProviderConfig) => void;
   openSettings: () => void;
 };
 
@@ -32,7 +33,9 @@ export default function ProviderProvider({ children }: { children: React.ReactNo
   };
 
   return (
-    <ProviderContext.Provider value={{ provider, openSettings: () => setSettingsOpen(true) }}>
+    <ProviderContext.Provider
+      value={{ provider, chooseProvider: save, openSettings: () => setSettingsOpen(true) }}
+    >
       {children}
       <ProviderSettings
         open={settingsOpen}

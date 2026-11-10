@@ -39,7 +39,13 @@ export default function ProviderSettings({
 
   useEffect(() => {
     if (!open) return;
-    setTab("models");
+    const preset = PRESETS.find(
+      (item) =>
+        item.baseUrl && normalizeBaseUrl(item.baseUrl) === normalizeBaseUrl(provider.baseUrl),
+    );
+    const requiresKey =
+      Boolean(preset?.needsKey) && !preset?.demo && !isLocalEndpoint(provider.baseUrl);
+    setTab(requiresKey && !provider.apiKey ? "connection" : "models");
     setQuery("");
     setDraft({
       ...provider,

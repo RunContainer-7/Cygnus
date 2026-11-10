@@ -156,6 +156,57 @@ export default function HomePage() {
           {error ? <p className="form-error">{error}</p> : null}
         </section>
 
+        <section className="home-panels">
+          <article className="home-panel">
+            <div className="home-panel-head">
+              <h3>Active model</h3>
+              <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
+            </div>
+            <strong>{providerLabel(provider)}</strong>
+            <p>{isDemo(provider) ? "Offline demo — writes a sample app." : provider.model}</p>
+            <button type="button" className="panel-link" onClick={openSettings}>
+              Change model →
+            </button>
+          </article>
+
+          <article className="home-panel">
+            <div className="home-panel-head">
+              <h3>Open source</h3>
+              <span className="panel-tag">Local-ready</span>
+            </div>
+            <strong>Same endpoint, any model</strong>
+            <p>
+              Ollama, LM Studio, vLLM, llama.cpp and open-weight APIs share one
+              OpenAI-compatible path.
+            </p>
+            <button type="button" className="panel-link" onClick={openSettings}>
+              Connect a local model →
+            </button>
+          </article>
+
+          <article className="home-panel">
+            <div className="home-panel-head">
+              <h3>Workspace</h3>
+              <span className="panel-tag">{projects.length}</span>
+            </div>
+            <strong>
+              {projects.length
+                ? `${projects.length} saved app${projects.length === 1 ? "" : "s"}`
+                : "No apps yet"}
+            </strong>
+            <p>
+              {projects[0]
+                ? `Latest: ${projects[0].name}`
+                : "Your first build creates a project here."}
+            </p>
+            {projects[0] ? (
+              <Link href={`/build/${projects[0].id}`} className="panel-link">
+                Open latest →
+              </Link>
+            ) : null}
+          </article>
+        </section>
+
         {projects.length > 0 ? (
           <section className="apps">
             <div className="apps-head">
