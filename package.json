@@ -1,0 +1,26 @@
+{
+  "name": "cygnus",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Free, open-source AI app builder. Bring your own model or run one locally.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3000",
+    "typecheck": "tsc --noEmit",
+    "gateway": "python3 -m respan_gateway",
+    "gateway:check": "python3 -m respan_gateway check"
+  },
+  "dependencies": {
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "latest"
+  }
+}

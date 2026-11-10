@@ -1,0 +1,15 @@
+.venv
+node_modules
+.next
+out
+build
+.DS_Store
+*.pem
+.env
+.env.*
+!.env.example
+workspaces/
+artifacts/
+next-env.d.ts
+tsconfig.tsbuildinfo
+*.log
