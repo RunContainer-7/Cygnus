@@ -320,7 +320,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  max-width: 62%;
+  max-width: 100%;
   padding: 7px 11px;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -803,6 +803,7 @@
 
 .composer-model-wrap {
   position: relative;
+  flex: 1;
   min-width: 0;
 }
 
