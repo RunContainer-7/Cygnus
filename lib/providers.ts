@@ -14,6 +14,7 @@ export type ProviderPreset = {
   local?: boolean;
   demo?: boolean;
   custom?: boolean;
+  free?: boolean;
 };
 
 export const PRESETS: ProviderPreset[] = [
@@ -99,6 +100,7 @@ export const PRESETS: ProviderPreset[] = [
     group: "cloud",
     demo: true,
   },
+
   {
     id: "respan",
     label: "Respan Gateway",
@@ -241,6 +243,15 @@ export function saveProviderKey(baseUrl: string, apiKey: string): void {
 
 export function isDemo(provider: ProviderConfig): boolean {
   return provider.baseUrl === "demo" || provider.model === "cygnus-demo";
+}
+
+export function isKeylessProvider(provider: ProviderConfig): boolean {
+  if (isDemo(provider)) return true;
+  const endpoint = normalizeBaseUrl(provider.baseUrl);
+  const preset = PRESETS.find(
+    (item) => item.baseUrl && normalizeBaseUrl(item.baseUrl) === endpoint,
+  );
+  return Boolean(preset?.local);
 }
 
 export function providerLabel(provider: ProviderConfig): string {

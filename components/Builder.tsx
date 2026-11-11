@@ -5,9 +5,19 @@ import { useAppShell } from "@/components/AppShell";
 import FileDrawer from "@/components/FileDrawer";
 import ModelMenu from "@/components/ModelMenu";
 import { useProvider } from "@/components/ProviderContext";
-import { isLocalEndpoint } from "@/lib/endpoints";
-import { isDemo, providerLabel } from "@/lib/providers";
+import { endpointHost, isLocalEndpoint } from "@/lib/endpoints";
+import { isDemo, isKeylessProvider, providerLabel } from "@/lib/providers";
 import type { ChatMessage, ProjectData, ToolEvent } from "@/lib/types";
+
+type PanelId =
+  | "preview"
+  | "code"
+  | "files"
+  | "changes"
+  | "assets"
+  | "console"
+  | "history"
+  | "settings";
 
 function formatSize(bytes: number): string {
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
@@ -48,7 +58,7 @@ export default function Builder({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"chat" | "preview">("chat");
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
-  const [panel, setPanel] = useState<"preview" | "code" | "files" | "console">("preview");
+  const [panel, setPanel] = useState<PanelId>("preview");
   const [codeFile, setCodeFile] = useState<string | null>(null);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
 
@@ -229,6 +239,34 @@ export default function Builder({
       ? [{ key: `${messageIndex}-error`, kind: "bad", text: message.error, path: undefined }]
       : []),
   ]);
+  const changeEntries = messages
+    .flatMap((message, messageIndex) =>
+      (message.tools ?? []).map((tool, toolIndex) => ({
+        ...tool,
+        key: `${messageIndex}-${toolIndex}`,
+      })),
+    )
+    .filter((tool) => tool.path);
+  const assetGroups = Object.entries(
+    files.reduce<Record<string, { count: number; bytes: number }>>((groups, file) => {
+      const ext = file.path.includes(".")
+        ? file.path.split(".").pop()!.toLowerCase()
+        : "other";
+      groups[ext] = groups[ext] ?? { count: 0, bytes: 0 };
+      groups[ext].count += 1;
+      groups[ext].bytes += file.size;
+      return groups;
+    }, {}),
+  ).sort((a, b) => b[1].count - a[1].count);
+  const panelMeta: Record<Exclude<PanelId, "preview">, string> = {
+    code: `${files.length} files`,
+    files: `${files.length} files`,
+    changes: `${changeEntries.length} writes`,
+    assets: `${assetGroups.length} types`,
+    console: `${consoleEntries.length} events`,
+    history: `${messages.length} messages`,
+    settings: isKeylessProvider(provider) ? "no key" : "key saved",
+  };
 
   return (
     <div className="builder">
@@ -457,7 +495,8 @@ export default function Builder({
               )}
             </div>
             <p className="composer-hint">
-              Enter to send · Shift+Enter for a new line · {provider.model}
+              Enter to send · Shift+Enter for a new line · {provider.model} ·{" "}
+              {isKeylessProvider(provider) ? "no key" : "key saved"}
             </p>
           </form>
           {!atBottom ? (
@@ -482,7 +521,11 @@ export default function Builder({
                   ["preview", "Preview"],
                   ["code", "Code"],
                   ["files", "Files"],
+                  ["changes", "Changes"],
+                  ["assets", "Assets"],
                   ["console", "Console"],
+                  ["history", "History"],
+                  ["settings", "Setup"],
                 ] as const
               ).map(([id, label]) => (
                 <button
@@ -529,11 +572,7 @@ export default function Builder({
                   </a>
                 </>
               ) : (
-                <span className="panel-count">
-                  {panel === "code" || panel === "files"
-                    ? `${files.length} files`
-                    : `${consoleEntries.length} events`}
-                </span>
+                <span className="panel-count">{panelMeta[panel]}</span>
               )}
             </div>
           </div>
@@ -623,6 +662,137 @@ export default function Builder({
               )}
             </div>
           ) : null}
+          {panel === "changes" ? (
+            <div className="console-panel">
+              {changeEntries.length === 0 ? (
+                <p className="panel-empty">
+                  File writes from the model show up here. Ask Cygnus to build or edit something.
+                </p>
+              ) : (
+                changeEntries.map((entry) => (
+                  <button
+                    key={entry.key}
+                    type="button"
+                    className={`console-row ${entry.ok ? "ok" : "warn"}`}
+                    disabled={!entry.path}
+                    onClick={() => {
+                      if (!entry.path) return;
+                      setCodeFile(entry.path);
+                      setPanel("code");
+                    }}
+                  >
+                    <span className="console-kind">{entry.ok ? "✓" : "!"}</span>
+                    <span>{entry.message}</span>
+                    {entry.path ? <code>{entry.path}</code> : null}
+                  </button>
+                ))
+              )}
+            </div>
+          ) : null}
+
+          {panel === "assets" ? (
+            <div className="assets-panel">
+              {assetGroups.length === 0 ? (
+                <p className="panel-empty">
+                  No assets yet. Generated HTML, CSS and JS files appear here by type.
+                </p>
+              ) : (
+                <div className="asset-grid">
+                  {assetGroups.map(([ext, group]) => (
+                    <div className="asset-card" key={ext}>
+                      <span className="asset-ext">.{ext}</span>
+                      <strong>
+                        {group.count} file{group.count === 1 ? "" : "s"}
+                      </strong>
+                      <span>{formatSize(group.bytes)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {panel === "history" ? (
+            <div className="history-panel">
+              {messages.length === 0 ? (
+                <p className="panel-empty">The conversation timeline appears here.</p>
+              ) : (
+                messages.map((message, index) => (
+                  <div className={`history-row ${message.role}`} key={`history-${index}`}>
+                    <span className="history-index">{String(index + 1).padStart(2, "0")}</span>
+                    <div className="history-body">
+                      <strong>{message.role === "user" ? "You" : "Cygnus"}</strong>
+                      <p>
+                        {message.content
+                          ? message.content.length > 220
+                            ? `${message.content.slice(0, 220)}…`
+                            : message.content
+                          : (message.error ??
+                            (message.tools?.length
+                              ? `${message.tools.length} file operation${
+                                  message.tools.length === 1 ? "" : "s"
+                                }`
+                              : "No text"))}
+                      </p>
+                    </div>
+                    {message.tools?.length ? (
+                      <span className="history-tools">{message.tools.length} ops</span>
+                    ) : null}
+                  </div>
+                ))
+              )}
+            </div>
+          ) : null}
+
+          {panel === "settings" ? (
+            <div className="settings-panel">
+              <div className="settings-row">
+                <span>Provider</span>
+                <strong>{providerLabel(provider)}</strong>
+              </div>
+              <div className="settings-row">
+                <span>Model</span>
+                <strong>{provider.model}</strong>
+              </div>
+              <div className="settings-row">
+                <span>Endpoint</span>
+                <strong>
+                  {isDemo(provider) ? "Built-in demo" : endpointHost(provider.baseUrl)}
+                </strong>
+              </div>
+              <div className="settings-row">
+                <span>Access</span>
+                <strong>{isKeylessProvider(provider) ? "No key" : "Key in this browser"}</strong>
+              </div>
+              <div className="settings-row">
+                <span>Project</span>
+                <strong>{project?.name ?? projectId}</strong>
+              </div>
+              <div className="settings-row">
+                <span>Files</span>
+                <strong>{files.length}</strong>
+              </div>
+              <div className="settings-actions">
+                <button type="button" onClick={openSettings}>
+                  Manage models
+                </button>
+                <button type="button" onClick={() => setRelease((value) => value + 1)}>
+                  Reload preview
+                </button>
+                <a
+                  href={`/api/preview/${projectId}/index.html`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open app ↗
+                </a>
+              </div>
+              <p className="settings-note">
+                Keys never leave this browser. Generated files live in the project folder on this
+                machine.
+              </p>
+            </div>
+          ) : null}
         </section>
       </main>
 
@@ -634,8 +804,14 @@ export default function Builder({
         <span className="status-sep" />
         <span>{files.length} files</span>
         <span className="status-right">
-          {isDemo(provider) ? "Demo" : isLocalEndpoint(provider.baseUrl) ? "Local" : "Cloud"} ·{" "}
-          {panel}
+          {isKeylessProvider(provider)
+            ? isDemo(provider)
+              ? "Demo · no key"
+              : isLocalEndpoint(provider.baseUrl)
+                ? "Local · no key"
+                : "Free · no key"
+            : "Cloud · key"}{" "}
+          · {panel}
         </span>
       </footer>
 

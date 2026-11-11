@@ -28,16 +28,19 @@ export default function ModelMenu({
   const matches = (preset: ProviderPreset) =>
     `${preset.label} ${preset.model} ${preset.blurb}`.toLowerCase().includes(query.trim().toLowerCase());
 
+  const local = PRESETS.filter((preset) => preset.group === "local" && !preset.custom).filter(matches);
   const open = PRESETS.filter((preset) => OPEN_SOURCE_IDS.has(preset.id)).filter(matches);
-  const local = PRESETS.filter((preset) => preset.group === "local").filter(matches);
   const cloud = PRESETS.filter(
-    (preset) => preset.group === "cloud" && !preset.demo && !OPEN_SOURCE_IDS.has(preset.id),
+    (preset) => preset.group === "cloud" && !preset.demo && !preset.free && !OPEN_SOURCE_IDS.has(preset.id),
   ).filter(matches);
   const free = PRESETS.filter((preset) => preset.demo).filter(matches);
 
   function pick(preset: ProviderPreset) {
     const baseUrl = normalizeBaseUrl(preset.baseUrl);
-    const apiKey = preset.demo || preset.local || preset.custom ? "" : loadProviderKey(baseUrl);
+    const apiKey =
+      preset.demo || preset.local || preset.free || preset.custom
+        ? ""
+        : loadProviderKey(baseUrl);
     const config = { baseUrl, model: preset.model, apiKey, label: preset.label };
     chooseProvider(config);
 
@@ -85,23 +88,17 @@ export default function ModelMenu({
         </span>
         <span
           className={`mm-badge ${
-            preset.demo ? "free" : preset.local || preset.custom ? "local" : "key"
+            preset.demo || preset.free ? "free" : preset.local || preset.custom ? "local" : "key"
           }`}
         >
-          {preset.demo
-            ? "No key"
-            : preset.local || preset.custom
-              ? "Local"
-              : OPEN_SOURCE_IDS.has(preset.id)
-                ? "Open"
-                : "API key"}
+          {preset.demo || preset.free ? "No key" : preset.local || preset.custom ? "Local" : "API key"}
         </span>
         {active ? <span className="mm-check">✓</span> : null}
       </button>
     );
   }
 
-  const total = open.length + local.length + cloud.length + free.length;
+  const total = local.length + open.length + cloud.length + free.length;
 
   return (
     <>
@@ -115,7 +112,7 @@ export default function ModelMenu({
         <div className="mm-head">
           <div>
             <strong>Model</strong>
-            <span>Open source, local, or cloud — one path.</span>
+            <span>Local models need no key. Keys stay in your browser.</span>
           </div>
           <button type="button" className="mm-manage" onClick={onManage}>
             Manage
@@ -135,21 +132,21 @@ export default function ModelMenu({
         <div className="mm-list">
           {total === 0 ? <p className="mm-empty">No models match “{query}”.</p> : null}
 
-          {open.length > 0 ? <div className="mm-label">Open source</div> : null}
-          {open.map(row)}
-
-          {local.length > 0 ? <div className="mm-label">Local models</div> : null}
+          {local.length > 0 ? <div className="mm-label">Local · no key</div> : null}
           {local.map(row)}
 
-          {cloud.length > 0 ? <div className="mm-label">Cloud</div> : null}
+          {open.length > 0 ? <div className="mm-label">Open source · API key</div> : null}
+          {open.map(row)}
+
+          {cloud.length > 0 ? <div className="mm-label">Cloud · API key</div> : null}
           {cloud.map(row)}
 
-          {free.length > 0 ? <div className="mm-label">Free demo</div> : null}
+          {free.length > 0 ? <div className="mm-label">Offline demo</div> : null}
           {free.map(row)}
         </div>
 
         <div className="mm-foot">
-          <span>Keys stay in this browser</span>
+          <span>Free + local need no key</span>
           <button type="button" onClick={onManage}>
             All models ↗
           </button>

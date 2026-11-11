@@ -11,8 +11,10 @@ import {
 } from "@/lib/providers";
 import type { ProviderConfig } from "@/lib/types";
 
-const FREE_PRESETS = PRESETS.filter((preset) => preset.demo);
-const CLOUD_PRESETS = PRESETS.filter((preset) => preset.group === "cloud" && !preset.demo);
+const FREE_PRESETS = PRESETS.filter((preset) => preset.demo || preset.free);
+const CLOUD_PRESETS = PRESETS.filter(
+  (preset) => preset.group === "cloud" && !preset.demo && !preset.free,
+);
 const LOCAL_PRESETS = PRESETS.filter((preset) => preset.group === "local");
 
 export default function ProviderSettings({
@@ -135,7 +137,9 @@ export default function ProviderSettings({
 
   function choosePreset(preset: ProviderPreset) {
     const apiKey =
-      preset.demo || preset.local || preset.custom ? "" : loadProviderKey(preset.baseUrl);
+      preset.demo || preset.free || preset.local || preset.custom
+        ? ""
+        : loadProviderKey(preset.baseUrl);
     const next: ProviderConfig = {
       baseUrl: preset.baseUrl,
       model: preset.model,
