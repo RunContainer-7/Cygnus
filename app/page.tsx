@@ -74,11 +74,7 @@ export default function HomePage() {
   }
 
   const keyless = isKeylessProvider(provider);
-  const accessLabel = isDemo(provider)
-    ? "Offline demo"
-    : keyless
-      ? "No key needed"
-      : "API key saved";
+  const accessLabel = keyless ? "No key needed" : "API key saved";
 
   return (
     <div className="home">

@@ -470,12 +470,13 @@
 
 .preview-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  height: 48px;
+  gap: 4px 8px;
+  min-height: 48px;
   flex: none;
-  padding: 0 16px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -488,9 +489,11 @@
 
 .preview-actions {
   display: flex;
+  order: 2;
   align-items: center;
   gap: 2px;
   flex: none;
+  margin-left: auto;
 }
 
 .preview-actions button,
@@ -989,6 +992,46 @@
   font-size: 12px;
 }
 
+.mm-scanline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 7px 8px;
+}
+
+.mm-scan {
+  padding: 5px 9px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 7px;
+  background: none;
+  color: #a9c4ff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.mm-scan:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.mm-scanline span {
+  color: var(--dim);
+  font-size: 10.5px;
+}
+
+.mm-scan-note {
+  margin: 2px 7px 8px;
+  color: var(--dim);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.mm-scan-note code {
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
 .mm-foot {
   display: flex;
   align-items: center;
@@ -1013,7 +1056,8 @@
 
 .panel-tabs {
   display: flex;
-  flex: 1;
+  flex: 1 1 100%;
+  order: 1;
   align-items: center;
   gap: 2px;
   min-width: 0;
@@ -1277,7 +1321,6 @@
   margin-left: auto;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-transform: capitalize;
 }
 
 @media (max-width: 640px) {

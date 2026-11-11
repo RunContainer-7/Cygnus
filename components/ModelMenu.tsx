@@ -7,6 +7,13 @@ import { PRESETS, loadProviderKey, type ProviderPreset } from "@/lib/providers";
 
 const OPEN_SOURCE_IDS = new Set(["groq", "deepseek", "together", "cerebras"]);
 
+type LocalServer = {
+  id: string;
+  label: string;
+  baseUrl: string;
+  models: string[];
+};
+
 export default function ModelMenu({
   onClose,
   onManage,
@@ -16,6 +23,11 @@ export default function ModelMenu({
 }) {
   const { provider, chooseProvider } = useProvider();
   const [query, setQuery] = useState("");
+  const [scan, setScan] = useState<{
+    loading: boolean;
+    done: boolean;
+    servers: LocalServer[];
+  }>({ loading: false, done: false, servers: [] });
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -64,6 +76,31 @@ export default function ModelMenu({
         .catch(() => undefined);
     }
 
+    onClose();
+  }
+
+  async function scanLocal() {
+    setScan((previous) => ({ ...previous, loading: true }));
+    try {
+      const response = await fetch("/api/local-models", { cache: "no-store" });
+      const data = (await response.json().catch(() => ({}))) as { servers?: LocalServer[] };
+      setScan({
+        loading: false,
+        done: true,
+        servers: Array.isArray(data.servers) ? data.servers : [],
+      });
+    } catch {
+      setScan({ loading: false, done: true, servers: [] });
+    }
+  }
+
+  function chooseLocal(server: LocalServer, model: string) {
+    chooseProvider({
+      baseUrl: server.baseUrl,
+      model,
+      apiKey: "",
+      label: server.label,
+    });
     onClose();
   }
 
@@ -134,6 +171,46 @@ export default function ModelMenu({
 
           {local.length > 0 ? <div className="mm-label">Local · no key</div> : null}
           {local.map(row)}
+          <div className="mm-scanline">
+            <button
+              type="button"
+              className="mm-scan"
+              onClick={() => void scanLocal()}
+              disabled={scan.loading}
+            >
+              {scan.loading ? "Scanning…" : "Scan this machine"}
+            </button>
+            {scan.done && scan.servers.length === 0 ? (
+              <span>No local servers found</span>
+            ) : null}
+          </div>
+          {scan.servers.map((server) =>
+            server.models.length === 0 ? (
+              <p className="mm-scan-note" key={`${server.id}-${server.baseUrl}`}>
+                {server.label} is running, but has no models loaded.
+              </p>
+            ) : (
+              server.models.slice(0, 4).map((model) => (
+                <button
+                  key={`${server.id}-${model}`}
+                  type="button"
+                  className="mm-row"
+                  onClick={() => chooseLocal(server, model)}
+                >
+                  <span className="mm-main">
+                    <span className="mm-title">{model}</span>
+                    <span className="mm-sub">{server.label} · running locally</span>
+                  </span>
+                  <span className="mm-badge local">Local</span>
+                </button>
+              ))
+            ),
+          )}
+          {scan.done && scan.servers.some((server) => server.models.length === 0) ? (
+            <p className="mm-scan-note">
+              Pull a tool-capable model: <code>ollama pull qwen3.5:4b</code>
+            </p>
+          ) : null}
 
           {open.length > 0 ? <div className="mm-label">Open source · API key</div> : null}
           {open.map(row)}
