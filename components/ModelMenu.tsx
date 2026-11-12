@@ -17,9 +17,11 @@ type LocalServer = {
 export default function ModelMenu({
   onClose,
   onManage,
+  placement = "up",
 }: {
   onClose: () => void;
   onManage: () => void;
+  placement?: "up" | "down";
 }) {
   const { provider, chooseProvider } = useProvider();
   const [query, setQuery] = useState("");
@@ -145,7 +147,7 @@ export default function ModelMenu({
         aria-label="Close model picker"
         onClick={onClose}
       />
-      <div className="model-menu" role="dialog" aria-label="Choose a model">
+      <div className={`model-menu ${placement}`} role="dialog" aria-label="Choose a model">
         <div className="mm-head">
           <div>
             <strong>Model</strong>
@@ -170,7 +172,6 @@ export default function ModelMenu({
           {total === 0 ? <p className="mm-empty">No models match “{query}”.</p> : null}
 
           {local.length > 0 ? <div className="mm-label">Local · no key</div> : null}
-          {local.map(row)}
           <div className="mm-scanline">
             <button
               type="button"
@@ -184,6 +185,7 @@ export default function ModelMenu({
               <span>No local servers found</span>
             ) : null}
           </div>
+          {local.map(row)}
           {scan.servers.map((server) =>
             server.models.length === 0 ? (
               <p className="mm-scan-note" key={`${server.id}-${server.baseUrl}`}>

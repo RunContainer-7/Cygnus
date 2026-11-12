@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import Logo from "./Logo";
 import { useProvider } from "./ProviderContext";
+import { isDemo, providerLabel } from "@/lib/providers";
 
 type ProjectSummary = {
   id: string;
@@ -26,7 +27,7 @@ export function useAppShell(): ShellContextValue {
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { openSettings } = useProvider();
+  const { openSettings, provider } = useProvider();
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -66,8 +67,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <Link href="/" className="new-app">
-            New app
+            + New app
           </Link>
+
+          <nav className="side-nav" aria-label="Workspace">
+            <Link href="/" className={`side-link ${pathname === "/" ? "active" : ""}`}>
+              Home
+            </Link>
+            <button type="button" className="side-link" onClick={openSettings}>
+              Models
+            </button>
+          </nav>
 
           <div className="sidebar-label">
             Projects <span>{projects.length}</span>
@@ -93,24 +103,31 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   className={`project-link ${project.id === activeId ? "active" : ""}`}
                   title={project.name}
                 >
-                  {project.name}
+                  <span className="side-dot" aria-hidden="true" />
+                  <span className="side-project-name">{project.name}</span>
                 </Link>
               ))
             )}
           </nav>
 
           <div className="sidebar-foot">
-            <button type="button" className="sidebar-action" onClick={openSettings}>
-              Settings
+            <button type="button" className="side-model" onClick={openSettings}>
+              <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
+              <span>{providerLabel(provider)}</span>
             </button>
-            <a
-              href="https://github.com/RunContainer-7/Cygnus"
-              target="_blank"
-              rel="noreferrer"
-              className="sidebar-action"
-            >
-              GitHub
-            </a>
+            <div className="side-foot-links">
+              <button type="button" className="sidebar-action" onClick={openSettings}>
+                Settings
+              </button>
+              <a
+                href="https://github.com/RunContainer-7/Cygnus"
+                target="_blank"
+                rel="noreferrer"
+                className="sidebar-action"
+              >
+                GitHub
+              </a>
+            </div>
           </div>
         </aside>
 

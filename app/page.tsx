@@ -16,16 +16,33 @@ type ProjectSummary = {
   fileCount?: number;
 };
 
-const PANELS = [
-  "Preview",
-  "Code",
-  "Files",
-  "Changes",
-  "Assets",
-  "Console",
-  "History",
-  "Setup",
+const TEMPLATES = [
+  {
+    title: "Landing page",
+    blurb: "Hero, features and pricing for a product launch.",
+    prompt: "A landing page for a coffee subscription with a hero, features and pricing",
+    glyph: "◇",
+    tone: "indigo",
+  },
+  {
+    title: "Kanban board",
+    blurb: "Columns, cards and local task persistence.",
+    prompt: "A kanban task board with todo, doing and done columns",
+    glyph: "▦",
+    tone: "green",
+  },
+  {
+    title: "Finance dashboard",
+    blurb: "Charts, budgets and a transaction list.",
+    prompt: "A personal finance dashboard with charts, a budget and transactions",
+    glyph: "◔",
+    tone: "amber",
+  },
 ];
+
+function initials(name: string): string {
+  return name.trim().charAt(0).toUpperCase() || "A";
+}
 
 export default function HomePage() {
   const router = useRouter();
@@ -73,8 +90,13 @@ export default function HomePage() {
     }
   }
 
+  function useTemplate(value: string) {
+    setPrompt(value);
+    promptRef.current?.focus();
+  }
+
   const keyless = isKeylessProvider(provider);
-  const accessLabel = keyless ? "No key needed" : "API key saved";
+  const access = isDemo(provider) ? "Demo" : keyless ? "No key" : "API key";
 
   return (
     <div className="home">
@@ -86,8 +108,8 @@ export default function HomePage() {
           ☰
         </button>
         <div className="home-bar-title">
-          <h2>Home</h2>
-          <span>Start a build, connect a model, or pick up a project</span>
+          <h2>Workspace</h2>
+          <span>Build and manage your apps</span>
         </div>
         <div className="home-bar-actions">
           <button type="button" className="ghost-btn" onClick={openSettings}>
@@ -96,278 +118,174 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="home-dash">
-        <section className="dash-main">
-          <div className="dash-hero">
-            <span className="dash-eyebrow">New build</span>
-            <h1>What should we build?</h1>
-            <p className="home-sub">
-              Describe an app in plain language. Cygnus writes real files, previews them live, and
-              iterates with you — with a hosted model or one running on this machine.
+      <div className="home-canvas">
+        <section className="build-card">
+          <div className="build-head">
+            <div>
+              <span className="kicker">New app</span>
+              <h1>What should we build?</h1>
+              <p className="build-sub">
+                Describe it in plain language. Cygnus writes the files and previews the app live.
+              </p>
+            </div>
+            <span className="build-mode">
+              <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
+              {access}
+            </span>
+          </div>
+
+          <div className="composer">
+            <textarea
+              ref={promptRef}
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void start();
+                }
+              }}
+              rows={4}
+              placeholder="A landing page for a coffee subscription…"
+              aria-label="Describe the app you want to build"
+            />
+            <div className="composer-row">
+              <div className="composer-model-wrap">
+                <button
+                  type="button"
+                  className="model-chip"
+                  aria-expanded={modelMenuOpen}
+                  aria-haspopup="dialog"
+                  onClick={() => setModelMenuOpen((value) => !value)}
+                >
+                  <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
+                  {providerLabel(provider)}
+                  <span aria-hidden="true" className="composer-model-caret">
+                    ⌄
+                  </span>
+                </button>
+                {modelMenuOpen ? (
+                  <ModelMenu
+                    placement="down"
+                    onClose={() => setModelMenuOpen(false)}
+                    onManage={() => {
+                      setModelMenuOpen(false);
+                      openSettings();
+                    }}
+                  />
+                ) : null}
+              </div>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={() => void start()}
+                disabled={!prompt.trim() || creating}
+              >
+                {creating ? "Starting…" : "Build"}
+              </button>
+            </div>
+            <p className="composer-note">
+              {isDemo(provider)
+                ? "Demo mode writes a sample app. Pick a model for real builds."
+                : keyless
+                  ? `No API key needed with ${providerLabel(provider)}.`
+                  : `Using ${providerLabel(provider)} with a key stored in this browser.`}{" "}
+              Enter builds, Shift+Enter adds a line.
             </p>
-
-            <div className="composer">
-              <textarea
-                ref={promptRef}
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    void start();
-                  }
-                }}
-                rows={4}
-                placeholder="A landing page for a coffee subscription…"
-                aria-label="Describe the app you want to build"
-              />
-              <div className="composer-row">
-                <div className="composer-model-wrap">
-                  <button
-                    type="button"
-                    className="model-chip"
-                    aria-expanded={modelMenuOpen}
-                    aria-haspopup="dialog"
-                    onClick={() => setModelMenuOpen((value) => !value)}
-                  >
-                    <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
-                    {providerLabel(provider)}
-                    <span aria-hidden="true" className="composer-model-caret">
-                      ⌄
-                    </span>
-                  </button>
-                  {modelMenuOpen ? (
-                    <ModelMenu
-                      onClose={() => setModelMenuOpen(false)}
-                      onManage={() => {
-                        setModelMenuOpen(false);
-                        openSettings();
-                      }}
-                    />
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  className="primary-btn"
-                  onClick={() => void start()}
-                  disabled={!prompt.trim() || creating}
-                >
-                  {creating ? "Starting…" : "Build"}
-                </button>
-              </div>
-              <p className="composer-note">
-                {isDemo(provider) ? (
-                  <>
-                    Offline demo writes a sample app. Pick a no-key model in the picker above to
-                    build what you ask for. Enter builds, Shift+Enter adds a line.
-                  </>
-                ) : keyless ? (
-                  <>
-                    No API key needed with {providerLabel(provider)}. Enter builds, Shift+Enter adds
-                    a line.
-                  </>
-                ) : (
-                  <>
-                    Using {providerLabel(provider)} with your key. Keys stay in this browser. Enter
-                    builds, Shift+Enter adds a line.
-                  </>
-                )}
-              </p>
-            </div>
-
-            <div className="prompt-chips">
-              {[
-                "A landing page for a coffee subscription",
-                "A kanban task board",
-                "A personal finance dashboard",
-              ].map((idea) => (
-                <button
-                  key={idea}
-                  type="button"
-                  onClick={() => {
-                    setPrompt(idea);
-                    promptRef.current?.focus();
-                  }}
-                >
-                  {idea}
-                </button>
-              ))}
-            </div>
-
-            {error ? <p className="form-error">{error}</p> : null}
           </div>
 
-          <div className="dash-metrics">
-            <div className="dash-metric">
-              <span>Active model</span>
-              <strong>{providerLabel(provider)}</strong>
-              <em>{isDemo(provider) ? "offline" : provider.model}</em>
-            </div>
-            <div className="dash-metric">
-              <span>Access</span>
-              <strong>{accessLabel}</strong>
-              <em>{keyless ? "nothing to paste" : "stored locally"}</em>
-            </div>
-            <div className="dash-metric">
-              <span>Projects</span>
-              <strong>{projects.length}</strong>
-              <em>{projects.length === 1 ? "saved app" : "saved apps"}</em>
-            </div>
-            <div className="dash-metric">
-              <span>Workspace</span>
-              <strong>{PANELS.length} panels</strong>
-              <em>chat + live app</em>
-            </div>
+          <div className="prompt-chips">
+            {[
+              "A landing page for a coffee subscription",
+              "A kanban task board",
+              "A personal finance dashboard",
+            ].map((idea) => (
+              <button key={idea} type="button" onClick={() => useTemplate(idea)}>
+                {idea}
+              </button>
+            ))}
           </div>
 
-          <section className="dash-block">
-            <div className="dash-block-head">
-              <h2>Your apps</h2>
-              <span>{projects.length === 0 ? "Nothing yet" : `${projects.length} total`}</span>
-            </div>
-            {projects.length > 0 ? (
-              <div className="project-list">
-                {projects.map((project) => (
-                  <Link key={project.id} href={`/build/${project.id}`} className="project-row">
-                    <span className="project-mark" aria-hidden="true">
-                      ◇
-                    </span>
-                    <span className="project-main">
-                      <strong>{project.name}</strong>
-                      <span>
-                        {project.fileCount ?? 0} files ·{" "}
-                        {new Date(project.createdAt).toLocaleDateString()}
-                      </span>
-                    </span>
-                    <span className="project-open">Open →</span>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="dash-empty">
-                <p>No projects yet. Your first prompt creates one here.</p>
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={() => promptRef.current?.focus()}
-                >
-                  Start a build
-                </button>
-              </div>
-            )}
-          </section>
-
-          <div className="dash-grid">
-            <section className="dash-card">
-              <h3>Start without a key</h3>
-              <p>
-                Keyless means local: run Ollama or LM Studio, point Cygnus at its endpoint, and no
-                account, key, or request ever leaves this machine.
-              </p>
-              <div className="dash-actions">
-                <button type="button" onClick={openSettings}>
-                  Choose a model
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPrompt("A pomodoro timer with focus and break sessions");
-                    promptRef.current?.focus();
-                  }}
-                >
-                  Use a starter prompt
-                </button>
-              </div>
-            </section>
-            <section className="dash-card">
-              <h3>Workspace panels</h3>
-              <div className="panel-list">
-                {PANELS.map((panel) => (
-                  <span key={panel}>{panel}</span>
-                ))}
-              </div>
-            </section>
-          </div>
+          {error ? <p className="form-error">{error}</p> : null}
         </section>
 
-        <aside className="dash-rail">
-          <article className="rail-card">
-            <div className="rail-head">
-              <h3>Active model</h3>
-              <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
+        <section className="section-card recent-card">
+            <div className="section-head">
+              <div>
+                <h2>Recent projects</h2>
+                <p>Continue where you left off</p>
+              </div>
+              <div className="section-tools">
+                <span>
+                  {projects.length} {projects.length === 1 ? "project" : "projects"}
+                </span>
+                <button
+                  type="button"
+                  className="section-action"
+                  onClick={() => promptRef.current?.focus()}
+                >
+                  + New
+                </button>
+              </div>
             </div>
-            <strong>{providerLabel(provider)}</strong>
-            <p className="rail-mono">{isDemo(provider) ? "cygnus-demo" : provider.model}</p>
-            <button type="button" className="panel-link" onClick={openSettings}>
-              Change model →
-            </button>
-          </article>
 
-          <article className="rail-card">
-            <h3>No key required</h3>
-            <ul className="rail-list">
-              <li>
-                <span>Ollama · localhost:11434</span>
-                <em>local</em>
-              </li>
-              <li>
-                <span>LM Studio · localhost:1234</span>
-                <em>local</em>
-              </li>
-              <li>
-                <span>Respan Gateway · localhost:8787</span>
-                <em>local</em>
-              </li>
-            </ul>
-            <button type="button" className="panel-link" onClick={openSettings}>
-              Set up keyless →
-            </button>
-          </article>
+            <div className="project-entries">
+              {projects.map((project, index) => (
+                <Link key={project.id} href={`/build/${project.id}`} className="project-entry">
+                  <span className={`project-badge thumb-${index % 3}`}>
+                    {initials(project.name)}
+                  </span>
+                  <span className="project-entry-main">
+                    <strong>{project.name}</strong>
+                    <span>
+                      {project.fileCount ?? 0} files ·{" "}
+                      {new Date(project.createdAt).toLocaleDateString()}
+                    </span>
+                  </span>
+                  <span className="project-entry-open">Open →</span>
+                </Link>
+              ))}
 
-          <article className="rail-card">
-            <h3>Workspace</h3>
-            <div className="rail-stat">
-              <span>Apps</span>
-              <strong>{projects.length}</strong>
+              {projects.length === 0 ? (
+                <button
+                  type="button"
+                  className="project-entry project-entry-empty"
+                  onClick={() => promptRef.current?.focus()}
+                >
+                  <span className="project-badge">+</span>
+                  <span className="project-entry-main">
+                    <strong>Start a new app</strong>
+                    <span>Describe it in the prompt above</span>
+                  </span>
+                </button>
+              ) : null}
             </div>
-            <div className="rail-stat">
-              <span>Panels</span>
-              <strong>{PANELS.length}</strong>
-            </div>
-            <div className="rail-stat">
-              <span>Keys</span>
-              <strong>Browser only</strong>
-            </div>
-          </article>
+          </section>
 
-          <article className="rail-card">
-            <h3>Quick actions</h3>
-            <div className="rail-actions">
-              <button type="button" onClick={() => promptRef.current?.focus()}>
-                New build
-              </button>
-              <button type="button" onClick={openSettings}>
-                Model settings
-              </button>
-              <a
-                href="https://github.com/RunContainer-7/Cygnus"
-                target="_blank"
-                rel="noreferrer"
+
+        <section className="templates-block">
+          <div className="section-head">
+            <div>
+              <h2>Templates</h2>
+              <p>Start from a shape, then change everything</p>
+            </div>
+          </div>
+          <div className="template-grid">
+            {TEMPLATES.map((template) => (
+              <button
+                key={template.title}
+                type="button"
+                className="template-card"
+                onClick={() => useTemplate(template.prompt)}
               >
-                GitHub ↗
-              </a>
-            </div>
-          </article>
-
-          <article className="rail-card rail-tip">
-            <h3>Why keys exist</h3>
-            <p>
-              Hosted open-source APIs like Groq and Together each need their own key. Freebuff can
-              hide that because it proxies models through its servers; Cygnus has no proxy, so
-              keyless means a model running on your own machine.
-            </p>
-          </article>
-        </aside>
+                <span className={`template-icon ${template.tone}`}>{template.glyph}</span>
+                <strong>{template.title}</strong>
+                <p>{template.blurb}</p>
+                <span className="template-use">Use template →</span>
+              </button>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppShell } from "@/components/AppShell";
 import FileDrawer from "@/components/FileDrawer";
@@ -18,6 +19,17 @@ type PanelId =
   | "console"
   | "history"
   | "settings";
+
+const PANEL_TABS: Array<{ id: PanelId; label: string }> = [
+  { id: "preview", label: "Preview" },
+  { id: "code", label: "Code" },
+  { id: "files", label: "Files" },
+  { id: "changes", label: "Changes" },
+  { id: "assets", label: "Assets" },
+  { id: "console", label: "Console" },
+  { id: "history", label: "History" },
+  { id: "settings", label: "Setup" },
+];
 
 function formatSize(bytes: number): string {
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
@@ -280,38 +292,56 @@ export default function Builder({
           >
             ☰
           </button>
+          <Link href="/" className="builder-crumb">
+            Projects
+          </Link>
+          <span className="builder-crumb-sep" aria-hidden="true">
+            /
+          </span>
           <div className="project-title">
             <strong>{project?.name ?? "Workspace"}</strong>
           </div>
         </div>
 
         <div className="builder-bar-right">
-          <div className="mobile-switch">
-            <button
-              type="button"
-              className={mobileView === "chat" ? "active" : ""}
-              onClick={() => setMobileView("chat")}
-            >
-              Chat
-            </button>
-            <button
-              type="button"
-              className={mobileView === "preview" ? "active" : ""}
-              onClick={() => setMobileView("preview")}
-            >
-              Preview
-            </button>
-          </div>
-
-          <button type="button" className="ghost-btn" onClick={() => setPanel("files")}>
-            Files
-          </button>
           <button type="button" className="model-pill" onClick={openSettings}>
             <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
             <span className="pill-label">{providerLabel(provider)}</span>
           </button>
         </div>
       </header>
+
+      <nav
+        className={`workspace-tabs ${mobileView === "chat" ? "chat-open" : ""}`}
+        role="tablist"
+        aria-label="Workspace panels"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobileView === "chat"}
+          className={`workspace-tab chat-tab ${mobileView === "chat" ? "active" : ""}`}
+          onClick={() => setMobileView("chat")}
+        >
+          Chat
+        </button>
+        {PANEL_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={panel === tab.id}
+            className={`workspace-tab ${panel === tab.id ? "active" : ""}`}
+            onClick={() => {
+              setPanel(tab.id);
+              setMobileView("preview");
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+        <span className="workspace-tabs-meta">{files.length} files</span>
+      </nav>
 
       <main className={`builder-main mobile-${mobileView}`}>
         <section className="chat-col">
@@ -514,32 +544,10 @@ export default function Builder({
         </section>
 
         <section className="preview-col">
-          <div className="preview-bar">
-            <div className="panel-tabs" role="tablist" aria-label="Workspace panels">
-              {(
-                [
-                  ["preview", "Preview"],
-                  ["code", "Code"],
-                  ["files", "Files"],
-                  ["changes", "Changes"],
-                  ["assets", "Assets"],
-                  ["console", "Console"],
-                  ["history", "History"],
-                  ["settings", "Setup"],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={panel === id}
-                  className={panel === id ? "active" : ""}
-                  onClick={() => setPanel(id)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+          <div className="preview-toolbar">
+            <span className="panel-title">
+              {PANEL_TABS.find((tab) => tab.id === panel)?.label}
+            </span>
             <div className="preview-actions">
               {panel === "preview" ? (
                 <>
@@ -810,8 +818,7 @@ export default function Builder({
               : isLocalEndpoint(provider.baseUrl)
                 ? "Local · no key"
                 : "Free · no key"
-            : "Cloud · key"}{" "}
-          · {panel}
+            : "Cloud · key"}
         </span>
       </footer>
 
