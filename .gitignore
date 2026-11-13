@@ -3,6 +3,7 @@ node_modules
 .next
 out
 /build
+/release
 .DS_Store
 *.pem
 .env

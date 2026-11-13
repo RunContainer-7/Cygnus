@@ -13,6 +13,22 @@ npm run dev
 
 Open http://localhost:3000.
 
+## Windows installer
+
+Build the desktop app with:
+
+```bash
+npm install
+npm run dist
+```
+
+That produces two files in `release/`:
+
+- `Cygnus-Setup-0.1.0.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.1.0.exe` — runs without installing anything.
+
+The desktop build bundles its own Next server, so the installed app does not need Node, a terminal or a running dev server. Projects live in `%APPDATA%\Cygnus\workspaces`; uninstalling keeps them. The installer is unsigned, so Windows SmartScreen may ask you to confirm before running it. Rebuild the installer to update the app.
+
 No API key is required to try it: the **Offline demo** provider writes a sample project through the same file tools the model uses. Open **Settings** to connect a real model.
 
 ## Models

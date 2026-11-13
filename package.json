@@ -3,12 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "description": "Free, open-source AI app builder. Bring your own model or run one locally.",
+  "productName": "Cygnus",
   "license": "MIT",
+  "author": "Cygnus contributors",
+  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "typecheck": "tsc --noEmit",
+    "desktop:build": "node desktop/build.mjs",
+    "desktop": "npm run desktop:build && electron .",
+    "dist": "npm run desktop:build && electron-builder --win",
+    "dist:dir": "npm run desktop:build && electron-builder --win --dir",
+    "dist:portable": "npm run desktop:build && electron-builder --win portable",
     "gateway": "python3 -m respan_gateway",
     "gateway:check": "python3 -m respan_gateway check"
   },
@@ -21,6 +29,64 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0",
     "typescript": "latest"
+  },
+  "build": {
+    "appId": "com.cygnus.builder",
+    "productName": "Cygnus",
+    "copyright": "Copyright © 2026 Cygnus contributors",
+    "asar": true,
+    "npmRebuild": false,
+    "directories": {
+      "output": "release",
+      "buildResources": "desktop/build"
+    },
+    "afterPack": "desktop/after-pack.cjs",
+    "files": [
+      "desktop/main.cjs",
+      "desktop/splash.html",
+      "package.json",
+      "!node_modules/**/*",
+      "!.next/**/*",
+      "!app/**/*",
+      "!components/**/*",
+      "!lib/**/*",
+      "!workspaces/**/*",
+      "!artifacts/**/*",
+      "!release/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "desktop/build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Cygnus",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Cygnus-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Cygnus-Portable-${version}.${ext}"
+    }
   }
 }
