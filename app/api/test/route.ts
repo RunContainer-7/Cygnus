@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { normalizeBaseUrl } from "@/lib/endpoints";
+import { HOSTED_BASE_URL, findHostedModel } from "@/lib/hosted";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,15 @@ export async function POST(request: NextRequest) {
 
   if (baseUrl === "demo") {
     return Response.json({ ok: true, detail: "Offline demo needs no connection." });
+  }
+  if (baseUrl === HOSTED_BASE_URL) {
+    if (!findHostedModel(model)) {
+      return Response.json({ ok: false, error: "Choose a hosted model first." }, { status: 400 });
+    }
+    return Response.json({
+      ok: true,
+      detail: "Hosted model selected. No key needed; shared free capacity is checked when you send a message.",
+    });
   }
 
   const headers: Record<string, string> = {};

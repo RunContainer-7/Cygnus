@@ -1,4 +1,5 @@
 import { normalizeBaseUrl } from "./endpoints";
+import { HOSTED_BASE_URL, HOSTED_MODELS, findHostedModel } from "./hosted";
 import type { ProviderConfig } from "./types";
 
 export const PROVIDER_STORAGE_KEY = "cygnus.provider.v1";
@@ -10,14 +11,88 @@ export type ProviderPreset = {
   model: string;
   blurb: string;
   needsKey: boolean;
-  group: "cloud" | "local";
+  group: "hosted" | "cloud" | "local" | "custom" | "demo";
   local?: boolean;
+  hosted?: boolean;
   demo?: boolean;
   custom?: boolean;
   free?: boolean;
 };
 
+const HOSTED_PRESETS: ProviderPreset[] = HOSTED_MODELS.map((entry) => ({
+  id: `hosted-${entry.id}`,
+  label: entry.name,
+  baseUrl: HOSTED_BASE_URL,
+  model: entry.id,
+  blurb: entry.note,
+  needsKey: false,
+  group: "hosted",
+  hosted: true,
+  free: true,
+}));
+
 export const PRESETS: ProviderPreset[] = [
+  ...HOSTED_PRESETS,
+  {
+    id: "respan",
+    label: "Respan Gateway",
+    baseUrl: "http://127.0.0.1:8787/v1",
+    model: "cygnus-agent",
+    blurb: "One local endpoint that routes to your own models.",
+    needsKey: false,
+    group: "local",
+    local: true,
+  },
+  {
+    id: "ollama",
+    label: "Ollama",
+    baseUrl: "http://localhost:11434/v1",
+    model: "qwen2.5-coder:7b",
+    blurb: "Fully local and free. Pull a tool-calling model first.",
+    needsKey: false,
+    group: "local",
+    local: true,
+  },
+  {
+    id: "lmstudio",
+    label: "LM Studio",
+    baseUrl: "http://localhost:1234/v1",
+    model: "local-model",
+    blurb: "Start the local server, then fetch its models.",
+    needsKey: false,
+    group: "local",
+    local: true,
+  },
+  {
+    id: "vllm",
+    label: "vLLM",
+    baseUrl: "http://localhost:8000/v1",
+    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+    blurb: "Your own served model — fetch to match.",
+    needsKey: false,
+    group: "local",
+    local: true,
+  },
+  {
+    id: "llamacpp",
+    label: "llama.cpp",
+    baseUrl: "http://localhost:8080/v1",
+    model: "local-model",
+    blurb: "llama-server --api. Fetch to match.",
+    needsKey: false,
+    group: "local",
+    local: true,
+  },
+  {
+    id: "localai",
+    label: "LocalAI",
+    baseUrl: "http://localhost:8080/v1",
+    model: "local-model",
+    blurb: "Self-hosted OpenAI-compatible API.",
+    needsKey: false,
+    group: "local",
+    local: true,
+  },
   {
     id: "openai",
     label: "OpenAI",
@@ -97,69 +172,9 @@ export const PRESETS: ProviderPreset[] = [
     model: "cygnus-demo",
     blurb: "Writes a sample project with no model call.",
     needsKey: false,
-    group: "cloud",
+    group: "demo",
     demo: true,
-  },
-
-  {
-    id: "respan",
-    label: "Respan Gateway",
-    baseUrl: "http://127.0.0.1:8787/v1",
-    model: "cygnus-agent",
-    blurb: "One local endpoint that routes to your own models.",
-    needsKey: false,
-    group: "local",
-    local: true,
-  },
-  {
-    id: "ollama",
-    label: "Ollama",
-    baseUrl: "http://localhost:11434/v1",
-    model: "qwen2.5-coder:7b",
-    blurb: "Fully local and free. Pull a tool-calling model first.",
-    needsKey: false,
-    group: "local",
-    local: true,
-  },
-  {
-    id: "lmstudio",
-    label: "LM Studio",
-    baseUrl: "http://localhost:1234/v1",
-    model: "local-model",
-    blurb: "Start the local server, then fetch its models.",
-    needsKey: false,
-    group: "local",
-    local: true,
-  },
-  {
-    id: "vllm",
-    label: "vLLM",
-    baseUrl: "http://localhost:8000/v1",
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct",
-    blurb: "Your own served model — fetch to match.",
-    needsKey: false,
-    group: "local",
-    local: true,
-  },
-  {
-    id: "llamacpp",
-    label: "llama.cpp",
-    baseUrl: "http://localhost:8080/v1",
-    model: "local-model",
-    blurb: "llama-server --api. Fetch to match.",
-    needsKey: false,
-    group: "local",
-    local: true,
-  },
-  {
-    id: "localai",
-    label: "LocalAI",
-    baseUrl: "http://localhost:8080/v1",
-    model: "local-model",
-    blurb: "Self-hosted OpenAI-compatible API.",
-    needsKey: false,
-    group: "local",
-    local: true,
+    free: true,
   },
   {
     id: "custom",
@@ -168,16 +183,16 @@ export const PRESETS: ProviderPreset[] = [
     model: "",
     blurb: "Paste any OpenAI-compatible URL and key.",
     needsKey: true,
-    group: "local",
+    group: "custom",
     custom: true,
   },
 ];
 
 export const DEFAULT_PROVIDER: ProviderConfig = {
-  baseUrl: "demo",
-  model: "cygnus-demo",
+  baseUrl: HOSTED_BASE_URL,
+  model: "nemotron-lightning",
   apiKey: "",
-  label: "Offline demo",
+  label: "Nemotron 3.5 Lightning",
 };
 
 export function loadProvider(): ProviderConfig {
@@ -187,6 +202,11 @@ export function loadProvider(): ProviderConfig {
     if (!raw) return DEFAULT_PROVIDER;
     const parsed = JSON.parse(raw) as Partial<ProviderConfig>;
     if (typeof parsed.baseUrl !== "string" || typeof parsed.model !== "string") {
+      return DEFAULT_PROVIDER;
+    }
+    // A saved hosted model can disappear from the free catalog. Fall back to
+    // the current default instead of leaving the user on a dead route.
+    if (parsed.baseUrl === HOSTED_BASE_URL && !findHostedModel(parsed.model)) {
       return DEFAULT_PROVIDER;
     }
     return {
@@ -245,17 +265,24 @@ export function isDemo(provider: ProviderConfig): boolean {
   return provider.baseUrl === "demo" || provider.model === "cygnus-demo";
 }
 
+export function isHosted(provider: ProviderConfig): boolean {
+  return provider.baseUrl === HOSTED_BASE_URL;
+}
+
 export function isKeylessProvider(provider: ProviderConfig): boolean {
-  if (isDemo(provider)) return true;
+  if (isDemo(provider) || isHosted(provider)) return true;
   const endpoint = normalizeBaseUrl(provider.baseUrl);
   const preset = PRESETS.find(
     (item) => item.baseUrl && normalizeBaseUrl(item.baseUrl) === endpoint,
   );
-  return Boolean(preset?.local);
+  return Boolean(preset?.local || preset?.hosted || preset?.demo);
 }
 
 export function providerLabel(provider: ProviderConfig): string {
   if (isDemo(provider)) return "Offline demo";
+  if (isHosted(provider)) {
+    return findHostedModel(provider.model)?.name ?? "Cygnus Hosted";
+  }
   const normalized = normalizeBaseUrl(provider.baseUrl);
   const preset = PRESETS.find((item) => item.baseUrl && item.baseUrl === normalized);
   if (preset) return preset.label;

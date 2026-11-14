@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 import { isLocalEndpoint, normalizeBaseUrl } from "@/lib/endpoints";
+import { HOSTED_BASE_URL } from "@/lib/hosted";
 import {
   PRESETS,
   isDemo,
@@ -11,11 +12,11 @@ import {
 } from "@/lib/providers";
 import type { ProviderConfig } from "@/lib/types";
 
-const FREE_PRESETS = PRESETS.filter((preset) => preset.demo || preset.free);
-const CLOUD_PRESETS = PRESETS.filter(
-  (preset) => preset.group === "cloud" && !preset.demo && !preset.free,
-);
+const HOSTED_PRESETS = PRESETS.filter((preset) => preset.group === "hosted");
 const LOCAL_PRESETS = PRESETS.filter((preset) => preset.group === "local");
+const CLOUD_PRESETS = PRESETS.filter((preset) => preset.group === "cloud");
+const CUSTOM_PRESETS = PRESETS.filter((preset) => preset.group === "custom");
+const DEMO_PRESETS = PRESETS.filter((preset) => preset.group === "demo");
 
 export default function ProviderSettings({
   open,
@@ -48,7 +49,10 @@ export default function ProviderSettings({
         item.baseUrl && normalizeBaseUrl(item.baseUrl) === normalizeBaseUrl(provider.baseUrl),
     );
     const requiresKey =
-      Boolean(preset?.needsKey) && !preset?.demo && !isLocalEndpoint(provider.baseUrl);
+      Boolean(preset?.needsKey) &&
+      !preset?.demo &&
+      !preset?.hosted &&
+      !isLocalEndpoint(provider.baseUrl);
     setTab(requiresKey && !provider.apiKey ? "connection" : "models");
     setQuery("");
     setDraft({
@@ -75,12 +79,18 @@ export default function ProviderSettings({
   if (!open && !embedded) return null;
 
   const isDemoDraft = isDemo(draft);
+  const isHostedDraft = draft.baseUrl === HOSTED_BASE_URL;
   const isLocalDraft = isLocalEndpoint(draft.baseUrl) && !isDemoDraft;
-  const matchedPreset = PRESETS.find(
-    (preset) => preset.baseUrl && normalizeBaseUrl(preset.baseUrl) === normalizeBaseUrl(draft.baseUrl),
-  );
+  const matchedPreset = PRESETS.find((preset) => {
+    if (!preset.baseUrl || normalizeBaseUrl(preset.baseUrl) !== normalizeBaseUrl(draft.baseUrl)) {
+      return false;
+    }
+    return preset.hosted ? preset.model === draft.model : true;
+  });
   const ready = Boolean(draft.baseUrl.trim() && draft.model.trim());
-  const needsKey = Boolean(matchedPreset?.needsKey && !isLocalDraft && !isDemoDraft);
+  const needsKey = Boolean(
+    matchedPreset?.needsKey && !isLocalDraft && !isDemoDraft && !isHostedDraft,
+  );
   const hasKey = Boolean((draft.apiKey ?? "").trim());
 
   const matches = (preset: ProviderPreset) =>
@@ -88,10 +98,12 @@ export default function ProviderSettings({
       .toLowerCase()
       .includes(query.trim().toLowerCase());
 
-  const free = FREE_PRESETS.filter(matches);
-  const cloud = CLOUD_PRESETS.filter(matches);
+  const hosted = HOSTED_PRESETS.filter(matches);
   const local = LOCAL_PRESETS.filter(matches);
-  const total = free.length + cloud.length + local.length;
+  const cloud = CLOUD_PRESETS.filter(matches);
+  const custom = CUSTOM_PRESETS.filter(matches);
+  const demo = DEMO_PRESETS.filter(matches);
+  const total = hosted.length + local.length + cloud.length + custom.length + demo.length;
 
   async function discover(config: ProviderConfig, autoPick: boolean) {
     const baseUrl = normalizeBaseUrl(config.baseUrl);
@@ -139,7 +151,7 @@ export default function ProviderSettings({
 
   function choosePreset(preset: ProviderPreset) {
     const apiKey =
-      preset.demo || preset.free || preset.local || preset.custom
+      preset.demo || preset.hosted || preset.local || preset.custom
         ? ""
         : loadProviderKey(preset.baseUrl);
     const next: ProviderConfig = {
@@ -217,14 +229,16 @@ export default function ProviderSettings({
         : matchedPreset?.id === preset.id;
       const title = preset.custom
         ? "Custom endpoint"
-        : preset.local
+        : preset.hosted || preset.local
           ? preset.label
           : preset.model;
       const subtitle = preset.custom
         ? "Any OpenAI-compatible URL and key."
-        : preset.local
-          ? preset.blurb
-          : `${preset.label} · ${preset.blurb}`;
+        : preset.hosted
+          ? `Free · ${preset.blurb}`
+          : preset.local
+            ? preset.blurb
+            : `${preset.label} · ${preset.blurb}`;
 
       return (
         <button
@@ -239,9 +253,23 @@ export default function ProviderSettings({
           </span>
           <span className="model-row-side">
             <span
-              className={`model-badge ${preset.demo ? "free" : preset.local || preset.custom ? "local" : "key"}`}
+              className={`model-badge ${
+                preset.demo || preset.hosted
+                  ? "free"
+                  : preset.local || preset.custom
+                    ? "local"
+                    : "key"
+              }`}
             >
-              {preset.demo ? "No key" : preset.local || preset.custom ? "Local" : "API key"}
+              {preset.demo
+                ? "No key"
+                : preset.hosted
+                  ? "Hosted"
+                  : preset.custom
+                    ? "Custom"
+                    : preset.local
+                      ? "Local"
+                      : "API key"}
             </span>
             {active ? (
               <span className="model-check" aria-label="Selected">
@@ -268,7 +296,7 @@ export default function ProviderSettings({
         <div className="picker-head">
           <div>
             <h2 id="model-settings-title">Models</h2>
-            <p>Choose what writes your app. Bring a key or run a local model.</p>
+            <p>Choose hosted (no key), local (private), or connect a BYOK cloud provider.</p>
           </div>
           {!embedded ? (
             <button type="button" className="icon-btn" onClick={onClose} aria-label="Close models">
@@ -279,10 +307,13 @@ export default function ProviderSettings({
 
         <div className="picker-meter">
           <div className="picker-meter-main">
-            <strong>No credits. No quotas.</strong>
-            <span>Requests go straight to your provider with your key.</span>
+            <strong>Hosted, local, or your key.</strong>
+            <span>
+              Hosted is free with no key. Local stays on this machine. BYOK uses your provider
+              key.
+            </span>
           </div>
-          <span className="picker-meter-tag">BYOK</span>
+          <span className="picker-meter-tag">3 modes</span>
         </div>
 
         <div className="picker-tabs" role="tablist" aria-label="Model settings tabs">
@@ -319,24 +350,38 @@ export default function ProviderSettings({
 
             {total === 0 ? <p className="picker-empty">No models match “{query}”.</p> : null}
 
-            {free.length > 0 ? (
+            {hosted.length > 0 ? (
               <>
-                <div className="model-group-label">Free</div>
-                {renderRows(free)}
-              </>
-            ) : null}
-
-            {cloud.length > 0 ? (
-              <>
-                <div className="model-group-label">Cloud</div>
-                {renderRows(cloud)}
+                <div className="model-group-label">Hosted · no key</div>
+                {renderRows(hosted)}
               </>
             ) : null}
 
             {local.length > 0 ? (
               <>
-                <div className="model-group-label">Local &amp; custom</div>
+                <div className="model-group-label">Local runtimes · no key</div>
                 {renderRows(local)}
+              </>
+            ) : null}
+
+            {cloud.length > 0 ? (
+              <>
+                <div className="model-group-label">BYOK cloud · API key</div>
+                {renderRows(cloud)}
+              </>
+            ) : null}
+
+            {custom.length > 0 ? (
+              <>
+                <div className="model-group-label">Custom endpoint</div>
+                {renderRows(custom)}
+              </>
+            ) : null}
+
+            {demo.length > 0 ? (
+              <>
+                <div className="model-group-label">Offline demo</div>
+                {renderRows(demo)}
               </>
             ) : null}
           </div>
@@ -347,6 +392,16 @@ export default function ProviderSettings({
                 ? matchedPreset.blurb
                 : "Any OpenAI-compatible endpoint works. Bare hosts get https; localhost gets http."}
             </p>
+
+            {isHostedDraft ? (
+              <div className="hosted-connection-note">
+                <strong>No connection setup needed.</strong>
+                <p>
+                  Hosted models use shared free capacity. No key is used, and prompts may be
+                  logged by the upstream provider. Use Local for private code.
+                </p>
+              </div>
+            ) : null}
 
             <label className="field">
               <span className="field-label">Base URL</span>
@@ -369,24 +424,28 @@ export default function ProviderSettings({
                 }
                 placeholder="https://api.example.com/v1"
                 spellCheck={false}
+                disabled={isHostedDraft}
               />
               <span className="field-hint">
-                Base URL or a full …/chat/completions URL. Bare hosts get https, or http for
-                localhost.
+                {isHostedDraft
+                  ? "Hosted models are selected from the Models list. No endpoint or key is required."
+                  : "Base URL or a full …/chat/completions URL. Bare hosts get https, or http for localhost."}
               </span>
             </label>
 
             <label className="field">
               <span className="field-label">
                 Model
-                <button
-                  type="button"
-                  className="fetch-btn"
-                  onClick={() => void discover(draft, false)}
-                  disabled={fetching || isDemoDraft || !draft.baseUrl.trim()}
-                >
-                  {fetching ? "Fetching…" : "Fetch models"}
-                </button>
+                {!isHostedDraft ? (
+                  <button
+                    type="button"
+                    className="fetch-btn"
+                    onClick={() => void discover(draft, false)}
+                    disabled={fetching || isDemoDraft || !draft.baseUrl.trim()}
+                  >
+                    {fetching ? "Fetching…" : "Fetch models"}
+                  </button>
+                ) : null}
               </span>
               <input
                 value={draft.model}
@@ -394,6 +453,7 @@ export default function ProviderSettings({
                 list={listId}
                 placeholder="model id"
                 spellCheck={false}
+                disabled={isHostedDraft}
               />
               <datalist id={listId}>
                 {models.map((model) => (
@@ -402,13 +462,15 @@ export default function ProviderSettings({
               </datalist>
               <p className={`model-status ${modelNote?.ok ? "ok" : modelNote ? "bad" : ""}`}>
                 {modelNote?.text ??
-                  (isLocalDraft
-                    ? "Local servers list their models automatically."
-                    : "Fetch models to list what the endpoint serves.")}
+                  (isHostedDraft
+                    ? "Hosted models use shared free capacity and may log prompts upstream."
+                    : isLocalDraft
+                      ? "Local servers list their models automatically."
+                      : "Fetch models to list what the endpoint serves.")}
               </p>
             </label>
 
-            {!isDemoDraft ? (
+            {!isDemoDraft && !isHostedDraft ? (
               <label className="field">
                 <span className="field-label">
                   API key{isLocalDraft ? " (optional for local)" : ""}
@@ -435,12 +497,18 @@ export default function ProviderSettings({
                   Saved for {currentLabel} in this browser only. Never sent to our server disk.
                 </span>
               </label>
+            ) : isHostedDraft ? (
+              <p className="field-hint">
+                No API key is needed for hosted models. Use Local for private projects.
+              </p>
             ) : (
               <p className="field-hint">The offline demo needs no key and makes no model call.</p>
             )}
 
             <p className="fineprint">
-              Keys stay in this browser. Swap providers without losing each provider&apos;s key.
+              {isHostedDraft
+                ? "Hosted models may log prompts upstream. Local models never leave this machine."
+                : "Keys stay in this browser. Swap providers without losing each provider's key."}
             </p>
 
             {test ? <p className={`test-result ${test.ok ? "ok" : "bad"}`}>{test.text}</p> : null}

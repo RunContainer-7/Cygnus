@@ -6,7 +6,7 @@ import FileDrawer from "@/components/FileDrawer";
 import ModelMenu from "@/components/ModelMenu";
 import { useProvider } from "@/components/ProviderContext";
 import { endpointHost, isLocalEndpoint } from "@/lib/endpoints";
-import { isDemo, isKeylessProvider, providerLabel } from "@/lib/providers";
+import { isDemo, isHosted, isKeylessProvider, providerLabel } from "@/lib/providers";
 import type { ChatMessage, ProjectData, ToolEvent } from "@/lib/types";
 
 type PanelId =
@@ -785,9 +785,11 @@ export default function Builder({
           {isKeylessProvider(provider)
             ? isDemo(provider)
               ? "Demo · no key"
-              : isLocalEndpoint(provider.baseUrl)
-                ? "Local · no key"
-                : "Free · no key"
+              : isHosted(provider)
+                ? "Hosted · no key"
+                : isLocalEndpoint(provider.baseUrl)
+                  ? "Local · no key"
+                  : "Free · no key"
             : "Cloud · key"}
         </span>
       </footer>

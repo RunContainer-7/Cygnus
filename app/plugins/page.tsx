@@ -222,10 +222,10 @@ export default function PluginsPage() {
               <Icon name="sliders" size={18} />
             </span>
             <div>
-              <strong>Prefer a hosted API?</strong>
+              <strong>Prefer hosted or BYOK?</strong>
               <p>
-                Cloud providers and keys are still available in Settings. The composer
-                picker stays open-source only.
+                The composer separates hosted open models (free, no key), local runtimes,
+                and BYOK providers. Cloud keys and custom endpoints live in Settings.
               </p>
             </div>
           </div>

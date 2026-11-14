@@ -8,10 +8,23 @@ import { normalizeBaseUrl } from "@/lib/endpoints";
 import {
   MODEL_TIERS,
   OPEN_SOURCE_MODELS,
+  type ModelAccess,
   type ModelTier,
   type OpenModel,
 } from "@/lib/modelCatalog";
 import { loadProviderKey } from "@/lib/providers";
+
+const ACCESS_TABS: Array<{ id: ModelAccess; label: string; sub: string }> = [
+  { id: "hosted", label: "Hosted", sub: "Free · no key" },
+  { id: "local", label: "Local", sub: "On this machine" },
+  { id: "byok", label: "BYOK", sub: "Your API key" },
+];
+
+const ACCESS_LABELS: Record<ModelAccess, string> = {
+  hosted: "Cygnus Hosted · shared free capacity",
+  local: "On this computer · no key",
+  byok: "Your provider · API key",
+};
 
 export default function ModelMenu({
   onClose,
@@ -26,6 +39,7 @@ export default function ModelMenu({
       entry.model === provider.model &&
       normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl),
   );
+  const [access, setAccess] = useState<ModelAccess>(current?.access ?? "hosted");
   const [tier, setTier] = useState<ModelTier>(current?.tier ?? "balanced");
   const [query, setQuery] = useState("");
 
@@ -42,21 +56,18 @@ export default function ModelMenu({
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return OPEN_SOURCE_MODELS.filter((entry) => {
+      if (entry.access !== access) return false;
       if (entry.tier !== tier) return false;
       if (!needle) return true;
       return `${entry.name} ${entry.provider} ${entry.note} ${entry.model}`
         .toLowerCase()
         .includes(needle);
-    });
-  }, [tier, query]);
-
-  const recommended = visible.filter((entry) => entry.recommended);
-  const local = visible.filter((entry) => entry.local && !entry.recommended);
-  const hosted = visible.filter((entry) => !entry.local && !entry.recommended);
+    }).sort((a, b) => Number(Boolean(b.recommended)) - Number(Boolean(a.recommended)));
+  }, [access, tier, query]);
 
   function choose(entry: OpenModel) {
     const baseUrl = normalizeBaseUrl(entry.baseUrl);
-    const apiKey = entry.local ? "" : loadProviderKey(baseUrl);
+    const apiKey = entry.access === "byok" ? loadProviderKey(baseUrl) : "";
     chooseProvider({
       baseUrl,
       model: entry.model,
@@ -65,12 +76,12 @@ export default function ModelMenu({
     });
     onClose();
 
-    if (!entry.local && !apiKey) {
+    if (entry.access === "byok" && !apiKey) {
       onManage();
       return;
     }
 
-    if (entry.local && entry.model === "local-model") {
+    if (entry.access === "local" && entry.model === "local-model") {
       fetch("/api/models", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,7 +118,7 @@ export default function ModelMenu({
           <div>
             <span className="mp-eyebrow">
               <span className="mp-eyebrow-dot" />
-              Open source only
+              Open models · pick a lane
             </span>
             <h2 id="model-picker-title">Choose a model</h2>
           </div>
@@ -115,6 +126,22 @@ export default function ModelMenu({
             <Icon name="close" size={17} />
           </button>
         </header>
+
+        <div className="mp-access-tabs" role="tablist" aria-label="Model access">
+          {ACCESS_TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={access === item.id}
+              className={`mp-access-tab ${access === item.id ? "active" : ""}`}
+              onClick={() => setAccess(item.id)}
+            >
+              <span className="mp-access-title">{item.label}</span>
+              <span className="mp-access-sub">{item.sub}</span>
+            </button>
+          ))}
+        </div>
 
         <div className="mp-tiers" role="tablist" aria-label="Model capability tier">
           {MODEL_TIERS.map((item) => (
@@ -138,8 +165,8 @@ export default function ModelMenu({
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search open models"
-            aria-label="Search open models"
+            placeholder={`Search ${access === "byok" ? "BYOK" : access} models`}
+            aria-label={`Search ${access} models`}
             spellCheck={false}
           />
           {query ? (
@@ -154,44 +181,18 @@ export default function ModelMenu({
             <p className="mp-empty">No open models match “{query}”.</p>
           ) : null}
 
-          {recommended.length > 0 ? (
+          {visible.length > 0 ? (
             <section className="mp-group">
-              <div className="mp-group-label">Recommended</div>
-              {recommended.map((entry) => (
-                <ModelRow
-                  key={entry.id}
-                  entry={entry}
-                  active={
-                    entry.model === provider.model &&
-                    normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl)
-                  }
-                  onChoose={() => choose(entry)}
-                />
-              ))}
-            </section>
-          ) : null}
+              <div className="mp-group-label">{ACCESS_LABELS[access]}</div>
 
-          {local.length > 0 ? (
-            <section className="mp-group">
-              <div className="mp-group-label">Local · no key</div>
-              {local.map((entry) => (
-                <ModelRow
-                  key={entry.id}
-                  entry={entry}
-                  active={
-                    entry.model === provider.model &&
-                    normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl)
-                  }
-                  onChoose={() => choose(entry)}
-                />
-              ))}
-            </section>
-          ) : null}
+              {access === "hosted" ? (
+                <div className="mp-notice">
+                  Free hosted models use shared public capacity and may log prompts upstream.
+                  Use <strong>Local</strong> for private code.
+                </div>
+              ) : null}
 
-          {hosted.length > 0 ? (
-            <section className="mp-group">
-              <div className="mp-group-label">Hosted open-weight · API key</div>
-              {hosted.map((entry) => (
+              {visible.map((entry) => (
                 <ModelRow
                   key={entry.id}
                   entry={entry}
@@ -207,7 +208,13 @@ export default function ModelMenu({
         </div>
 
         <footer className="mp-foot">
-          <span>Keys and cloud models live in Settings.</span>
+          <span>
+            {access === "hosted"
+              ? "No key. Shared free capacity."
+              : access === "local"
+                ? "Runs on your computer."
+                : "Uses the key saved in Settings."}
+          </span>
           <button type="button" onClick={onManage}>
             All models <Icon name="arrowUpRight" size={13} />
           </button>
@@ -248,8 +255,8 @@ function ModelRow({
         </span>
       </span>
       <span className="mp-row-side">
-        <span className={`mp-access ${entry.local ? "local" : ""}`}>
-          {entry.local ? "No key" : "API key"}
+        <span className={`mp-access ${entry.access}`}>
+          {entry.access === "hosted" ? "Free" : entry.access === "local" ? "Local" : "Key"}
         </span>
         {active ? (
           <span className="mp-check" aria-label="Selected">

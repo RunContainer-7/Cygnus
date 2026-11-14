@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { normalizeBaseUrl } from "@/lib/endpoints";
+import { HOSTED_BASE_URL, HOSTED_MODELS } from "@/lib/hosted";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,9 @@ export async function POST(request: NextRequest) {
       { models: [], error: "The offline demo has no model list." },
       { status: 400 },
     );
+  }
+  if (baseUrl === HOSTED_BASE_URL) {
+    return Response.json({ models: HOSTED_MODELS.map((model) => model.id) });
   }
 
   const headers: Record<string, string> = {};

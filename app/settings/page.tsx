@@ -14,16 +14,29 @@ export default function SettingsPage() {
           <span className="page-eyebrow">Settings</span>
           <h1>Models &amp; connections.</h1>
           <p>
-            Bring a cloud key, point Cygnus at a local server, or keep using the offline
-            demo. Keys are saved in this browser only.
+            Pick a hosted open model with no key, run a local server, or bring a BYOK cloud
+            key. Keys are saved in this browser only.
           </p>
         </header>
+
+        <div className="settings-lanes" aria-label="Model access modes">
+          <span>
+            <strong>Hosted</strong> free · no key
+          </span>
+          <span>
+            <strong>Local</strong> private · no key
+          </span>
+          <span>
+            <strong>BYOK</strong> your own key
+          </span>
+        </div>
 
         <div className="settings-privacy">
           <span className="panel-foot-dot" />
           <span>
-            <strong>Browser-local by design.</strong> Cygnus sends requests straight to
-            the endpoint you choose, never through a Cygnus account.
+            <strong>No account required.</strong> Hosted models use shared free capacity and
+            may log prompts upstream. Local models stay on this computer; BYOK keys stay in
+            this browser.
           </span>
         </div>
 

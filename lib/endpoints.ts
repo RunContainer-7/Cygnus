@@ -1,3 +1,5 @@
+import { HOSTED_BASE_URL } from "./hosted";
+
 const LOCAL_HOST =
   /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|10\.\d{1,3}\.|192\.168\.\d{1,3}\.|172\.(1[6-9]|2\d|3[01])\.)/i;
 
@@ -11,7 +13,7 @@ const LOCAL_HOST =
 export function normalizeBaseUrl(input: string): string {
   let value = (input ?? "").trim();
   if (!value) return "";
-  if (value === "demo") return value;
+  if (value === "demo" || value === HOSTED_BASE_URL) return value;
 
   if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) {
     value = `${LOCAL_HOST.test(value) ? "http" : "https"}://${value}`;
@@ -33,6 +35,7 @@ export function isLocalEndpoint(baseUrl: string): boolean {
 }
 
 export function endpointHost(baseUrl: string): string {
+  if (baseUrl === HOSTED_BASE_URL) return "Cygnus Hosted";
   try {
     return new URL(normalizeBaseUrl(baseUrl)).host;
   } catch {

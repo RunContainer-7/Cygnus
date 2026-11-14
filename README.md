@@ -1,6 +1,6 @@
 # Cygnus
 
-Completely free AI App Builder / VibeCoder. Use a basic agent locally, bring your own key (BYOK), or run local models. No paywalls.
+Completely free AI App Builder / VibeCoder. Start on a hosted open-weight model with no key, run a local model, or bring your own key (BYOK). No paywalls.
 
 Cygnus turns a prompt into a real web app: files are written into a workspace on disk, the preview reloads after every turn, and the chat remembers the conversation. It is a small, hackable version of the Dyad / bolt.diy idea.
 
@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3000. It starts on **Nemotron 3.5 Lightning**, a hosted open-weight model that needs no key.
 
 ## Download for Windows
 
@@ -39,9 +39,31 @@ That produces two files in `release/`:
 
 Rebuild the installer after changes to package a new version.
 
-No API key is required to try it: the **Offline demo** provider writes a sample project through the same file tools the model uses. Open **Settings** to connect a real model.
+No API key is required to try it. New installs start on the hosted **Nemotron 3.5 Lightning** model; the **Offline demo** is still available in Settings and writes a sample project without any model call. Open **Settings** to choose hosted, local, or BYOK models.
 
 ## Models
+
+Cygnus has three separate access lanes, shown in the model picker and Settings:
+
+| Lane | Key | What it is |
+| --- | --- | --- |
+| **Hosted** | None | Free open-weight models on shared public capacity. No account, no key. Prompts may be logged upstream. |
+| **Local** | None | Ollama, LM Studio, vLLM, llama.cpp, LocalAI or Respan on your machine. Private, offline-capable. |
+| **BYOK** | Your key | OpenAI, Anthropic, Gemini, Groq, OpenRouter, DeepSeek, Together, Cerebras and custom endpoints. |
+
+### Hosted · free, no key
+
+Hosted models run through [Kilo AI Gateway](https://ai-gateway.kilo.ai)'s anonymous free tier (about 200 requests/hour per IP). They are open-weight models, but the capacity is shared: if a model is busy, choose another hosted model, wait, or switch to Local/BYOK.
+
+| Model | Tier | Notes |
+| --- | --- | --- |
+| LFM 3 1.7B | Low | Tiny and quick for small edits. |
+| Nemotron 3.5 Lightning | Balanced | 30B agent; the default for multi-file builds. |
+| Nemotron 3 Ultra 550B | Max | Slower 550B reasoning model for long builds. |
+
+Hosted prompts may be logged by the upstream provider. Use **Local** for private code.
+
+### BYOK and local endpoints
 
 Cygnus talks to any OpenAI-compatible chat completions endpoint with tool calling. Presets cover:
 
@@ -129,6 +151,7 @@ Each project is a normal folder. Open it in any editor, or delete it to start ov
 - Generated apps are static: HTML, CSS and vanilla JavaScript. No npm install, frameworks or build step yet.
 - The preview iframe is same-origin with `allow-scripts`, so generated code can reach the app's own APIs. Do not run untrusted prompts against a server holding real secrets; the next step for hosting is one sandbox (container or microVM) per project.
 - The agent loop is capped at 10 tool rounds per message.
+- Hosted models use shared free capacity (about 200 requests/hour per IP) and may be rate-limited or busy. They may log prompts upstream; Local keeps prompts on your machine.
 - Provider tool-calling quality varies. Local 7B models work for small edits; long multi-file sessions need a stronger model.
 
 MIT licensed.

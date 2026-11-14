@@ -1,4 +1,11 @@
-export type ModelTier = "low" | "balanced" | "max";
+import {
+  HOSTED_BASE_URL,
+  HOSTED_MODELS,
+  type HostedTier,
+} from "./hosted";
+
+export type ModelTier = HostedTier;
+export type ModelAccess = "hosted" | "local" | "byok";
 
 export type OpenModel = {
   id: string;
@@ -7,7 +14,7 @@ export type OpenModel = {
   baseUrl: string;
   model: string;
   tier: ModelTier;
-  local?: boolean;
+  access: ModelAccess;
   recommended?: boolean;
   badge?: string;
   note: string;
@@ -17,7 +24,7 @@ export const MODEL_TIERS: Array<{ id: ModelTier; label: string; hint: string }> 
   {
     id: "low",
     label: "Low",
-    hint: "Small, fast, local-friendly. Good for tight edits.",
+    hint: "Small and fast. Good for tight edits and quick drafts.",
   },
   {
     id: "balanced",
@@ -31,11 +38,28 @@ export const MODEL_TIERS: Array<{ id: ModelTier; label: string; hint: string }> 
   },
 ];
 
+const HOSTED_ENTRIES: OpenModel[] = HOSTED_MODELS.map((entry) => ({
+  id: `hosted-${entry.id}`,
+  name: entry.name,
+  provider: "Cygnus Hosted",
+  baseUrl: HOSTED_BASE_URL,
+  model: entry.id,
+  tier: entry.tier,
+  access: "hosted",
+  recommended: entry.recommended,
+  badge: entry.badge,
+  note: entry.note,
+}));
+
 /**
  * Only open-weight models belong here. Proprietary cloud models stay in the
  * full Settings surface, not the composer picker.
+ *
+ * Hosted entries need no key. Local entries talk to a server on this machine.
+ * BYOK entries use a provider key saved in this browser.
  */
 export const OPEN_SOURCE_MODELS: OpenModel[] = [
+  ...HOSTED_ENTRIES,
   {
     id: "ollama-qwen7b",
     name: "Qwen2.5 Coder 7B",
@@ -43,17 +67,8 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
     baseUrl: "http://localhost:11434/v1",
     model: "qwen2.5-coder:7b",
     tier: "low",
-    local: true,
+    access: "local",
     note: "Runs offline on an 8 GB machine.",
-  },
-  {
-    id: "groq-llama8b",
-    name: "Llama 3.1 8B",
-    provider: "Groq",
-    baseUrl: "https://api.groq.com/openai/v1",
-    model: "llama-3.1-8b-instant",
-    tier: "low",
-    note: "Hosted Llama. Fast drafts, needs an API key.",
   },
   {
     id: "lmstudio-local",
@@ -62,8 +77,18 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
     baseUrl: "http://localhost:1234/v1",
     model: "local-model",
     tier: "low",
-    local: true,
+    access: "local",
     note: "Uses the model currently loaded in LM Studio.",
+  },
+  {
+    id: "groq-llama8b",
+    name: "Llama 3.1 8B",
+    provider: "Groq",
+    baseUrl: "https://api.groq.com/openai/v1",
+    model: "llama-3.1-8b-instant",
+    tier: "low",
+    access: "byok",
+    note: "Hosted Llama. Fast drafts, needs your Groq key.",
   },
   {
     id: "deepseek-flash",
@@ -72,8 +97,8 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
     baseUrl: "https://api.deepseek.com",
     model: "deepseek-flash",
     tier: "balanced",
-    recommended: true,
-    note: "Strong coding, long context, low cost.",
+    access: "byok",
+    note: "Strong coding, long context, needs your DeepSeek key.",
   },
   {
     id: "groq-llama70b",
@@ -82,7 +107,8 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
     baseUrl: "https://api.groq.com/openai/v1",
     model: "llama-3.3-70b-versatile",
     tier: "balanced",
-    note: "Hosted Llama for bigger multi-file changes.",
+    access: "byok",
+    note: "Hosted Llama for bigger changes, needs your Groq key.",
   },
   {
     id: "cerebras-qwen27b",
@@ -91,8 +117,9 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
     baseUrl: "https://api.cerebras.ai/v1",
     model: "qwen-3.8-27b",
     tier: "balanced",
+    access: "byok",
     badge: "New",
-    note: "Very fast open-weight inference.",
+    note: "Very fast open-weight inference, needs your Cerebras key.",
   },
   {
     id: "ollama-qwen14b",
@@ -101,7 +128,7 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
     baseUrl: "http://localhost:11434/v1",
     model: "qwen2.5-coder:14b",
     tier: "balanced",
-    local: true,
+    access: "local",
     note: "A bigger local model for stronger edits.",
   },
   {
@@ -111,7 +138,7 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
     baseUrl: "http://127.0.0.1:8787/v1",
     model: "cygnus-agent",
     tier: "balanced",
-    local: true,
+    access: "local",
     note: "Routes to LM Studio, then Ollama automatically.",
   },
   {
@@ -121,7 +148,8 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
     baseUrl: "https://api.together.ai/v1",
     model: "Qwen/Qwen3-Coder-480B-A35B-Instruct",
     tier: "max",
-    note: "The largest open-weight coding model here.",
+    access: "byok",
+    note: "The largest BYOK open-weight coding model here.",
   },
   {
     id: "vllm-qwen30b",
@@ -130,7 +158,7 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
     baseUrl: "http://localhost:8000/v1",
     model: "Qwen/Qwen3-Coder-30B-A3B-Instruct",
     tier: "max",
-    local: true,
+    access: "local",
     note: "Your own vLLM server. No key, no quota.",
   },
   {
@@ -140,7 +168,7 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
     baseUrl: "http://localhost:11434/v1",
     model: "qwen2.5-coder:32b",
     tier: "max",
-    local: true,
+    access: "local",
     note: "Heavy local model for long, careful builds.",
   },
   {
@@ -150,7 +178,7 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
     baseUrl: "http://localhost:8080/v1",
     model: "local-model",
     tier: "max",
-    local: true,
+    access: "local",
     note: "Uses whichever GGUF model llama-server exposes.",
   },
 ];
