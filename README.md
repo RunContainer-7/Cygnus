@@ -13,7 +13,17 @@ npm run dev
 
 Open http://localhost:3000.
 
-## Windows installer
+## Download for Windows
+
+The latest release is **[v0.1.0](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.0)**:
+
+- [Cygnus-Setup-0.1.0.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.0/Cygnus-Setup-0.1.0.exe) — 123 MB installer with Start Menu and desktop shortcuts.
+- [Cygnus-Portable-0.1.0.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.0/Cygnus-Portable-0.1.0.exe) — 111 MB portable build that runs without installing.
+- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.0/SHA256SUMS.txt) — checksums for both downloads.
+
+Run the installer and choose a folder. Cygnus bundles its own local server, so Node.js, a terminal and a separate dev server are not required. Projects live in `%APPDATA%\Cygnus\workspaces`; uninstalling keeps them. The build is unsigned, so Windows SmartScreen may ask you to confirm before running it.
+
+### Build it yourself
 
 Build the desktop app with:
 
@@ -27,7 +37,7 @@ That produces two files in `release/`:
 - `Cygnus-Setup-0.1.0.exe` — a normal setup wizard with Start menu and desktop shortcuts.
 - `Cygnus-Portable-0.1.0.exe` — runs without installing anything.
 
-The desktop build bundles its own Next server, so the installed app does not need Node, a terminal or a running dev server. Projects live in `%APPDATA%\Cygnus\workspaces`; uninstalling keeps them. The installer is unsigned, so Windows SmartScreen may ask you to confirm before running it. Rebuild the installer to update the app.
+Rebuild the installer after changes to package a new version.
 
 No API key is required to try it: the **Offline demo** provider writes a sample project through the same file tools the model uses. Open **Settings** to connect a real model.
 
