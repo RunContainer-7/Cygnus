@@ -1,0 +1,56 @@
+# Respan Gateway config for Cygnus.
+# https://github.com/respanai/respan-gateway — docs: https://github.com/respanai/respan-gateway/blob/v0.3.0/docs/configuration.md
+#
+# Start it with `npm run gateway` (Python: see requirements.txt) and leave
+# Cygnus's Settings on the "Respan Gateway" preset: http://127.0.0.1:8787/v1.
+# `npm run gateway:check` validates this file without starting anything.
+#
+# Loopback only, no client keys: whoever can reach this spends your provider
+# keys, so do not change `listen` to a public address. 8787 keeps clear of
+# the local servers below (LM Studio 1234, Ollama 11434, vLLM 8000, llama.cpp 8080).
+
+listen = "127.0.0.1:8787"
+log    = "text"
+ui     = true                      # request log + UI at http://127.0.0.1:8787/ui/
+
+[cors]
+origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
+
+# ─── Local model servers ────────────────────────────────────────────────
+# No keys, work offline. Start the one you use: LM Studio on port 1234, or
+# `ollama serve` with a tool-calling model pulled.
+
+[providers.lmstudio]
+formats  = ["openai-chat"]
+base_url = "http://localhost:1234/v1"
+proxy    = false
+
+[providers.ollama]
+vendor   = "ollama"
+base_url = "http://localhost:11434"
+proxy    = false
+
+# ─── Cloud fallback (optional) ──────────────────────────────────────────
+# Uncomment a provider, put its key in .env (gitignored — the gateway reads
+# it), then add the provider to the route below. Keys stay in .env, never in
+# this file: `env:NAME` is a reference.
+
+# [providers.openai]
+# vendor = "openai"
+# key    = "env:OPENAI_API_KEY"
+#
+# [providers.anthropic]
+# vendor = "anthropic"
+# key    = "env:ANTHROPIC_API_KEY"
+
+# ─── Routes ─────────────────────────────────────────────────────────────
+# One model name for Cygnus's model picker. The gateway tries LM Studio
+# first and falls back to Ollama when it is not running, so switching the
+# loaded environment does not mean editing Settings again.
+#
+# With a cloud provider enabled above, make it a fallback:
+#   to = ["lmstudio/local-model", "ollama/qwen2.5-coder:7b", "openai/gpt-4.1-mini"]
+
+[routes.cygnus-agent]
+to    = ["lmstudio/local-model", "ollama/qwen2.5-coder:7b"]
+tries = 1

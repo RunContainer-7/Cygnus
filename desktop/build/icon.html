@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cygnus icon</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 512px;
+        height: 512px;
+        margin: 0;
+        background: transparent;
+        overflow: hidden;
+      }
+      body {
+        display: grid;
+        place-items: center;
+      }
+      .icon {
+        position: relative;
+        width: 512px;
+        height: 512px;
+        border-radius: 112px;
+        overflow: hidden;
+        background:
+          radial-gradient(360px 280px at 80% 0%, rgba(97, 128, 243, 0.48), transparent 68%),
+          radial-gradient(320px 280px at 6% 100%, rgba(53, 178, 178, 0.24), transparent 70%),
+          linear-gradient(145deg, #0c1026 0%, #05060d 72%);
+        box-shadow:
+          inset 0 0 0 2px rgba(169, 194, 255, 0.18),
+          inset 0 30px 80px rgba(122, 153, 255, 0.08);
+      }
+      .stars {
+        position: absolute;
+        inset: 0;
+        opacity: 0.7;
+        background-image:
+          radial-gradient(2px 2px at 42px 92px, #dce6ff 50%, transparent 51%),
+          radial-gradient(1.6px 1.6px at 132px 64px, #9fb8ff 50%, transparent 51%),
+          radial-gradient(2.6px 2.6px at 438px 78px, #ffffff 50%, transparent 51%),
+          radial-gradient(1.8px 1.8px at 470px 214px, #b9c9ff 50%, transparent 51%),
+          radial-gradient(1.6px 1.6px at 82px 360px, #8fa9e8 50%, transparent 51%),
+          radial-gradient(2.2px 2.2px at 404px 422px, #dce6ff 50%, transparent 51%),
+          radial-gradient(1.5px 1.5px at 220px 468px, #8298d8 50%, transparent 51%);
+      }
+      .mark {
+        position: relative;
+        width: 342px;
+        height: 342px;
+        filter: drop-shadow(0 0 34px rgba(154, 181, 255, 0.3));
+      }
+    </style>
+  </head>
+  <body>
+    <div class="icon">
+      <div class="stars" aria-hidden="true"></div>
+      <svg class="mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <g stroke="#b9ceff" stroke-width="0.55" opacity="0.62">
+          <path d="M16 3.2 10.4 14.8l5.6 5.6 5.6-5.6Z" />
+          <path d="M10.4 14.8 4 19.6M21.6 14.8 28 19.6M16 20.4v8.4" />
+          <path d="M16 3.2 26.4 6.8M16 20.4l10.2 1.2" opacity="0.4" />
+        </g>
+        <g fill="#eef3ff">
+          <circle cx="16" cy="3.2" r="2.45" />
+          <circle cx="10.4" cy="14.8" r="1.5" />
+          <circle cx="21.6" cy="14.8" r="1.5" />
+          <circle cx="16" cy="28.8" r="1.35" />
+          <circle cx="26.4" cy="6.8" r="1.05" />
+          <circle cx="26.2" cy="21.6" r="0.95" />
+          <circle cx="4" cy="19.6" r="0.9" />
+        </g>
+      </svg>
+    </div>
+  </body>
+</html>
