@@ -3,71 +3,36 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useAppShell } from "@/components/AppShell";
 import ConstellationBackground from "@/components/ConstellationBackground";
+import Icon from "@/components/Icon";
 import ModelMenu from "@/components/ModelMenu";
 import { useProvider } from "@/components/ProviderContext";
-import { isDemo, isKeylessProvider, providerLabel } from "@/lib/providers";
+import TemplateCard from "@/components/TemplateCard";
+import { isDemo, providerLabel } from "@/lib/providers";
+import { TEMPLATES } from "@/lib/templates";
 
-type ProjectSummary = {
-  id: string;
-  name: string;
-  createdAt: string;
-  fileCount?: number;
-};
-
-const TEMPLATES = [
-  {
-    title: "Landing page",
-    blurb: "Hero, features and pricing for a product launch.",
-    prompt: "A landing page for a coffee subscription with a hero, features and pricing",
-    glyph: "◇",
-    tone: "indigo",
-  },
-  {
-    title: "Kanban board",
-    blurb: "Columns, cards and local task persistence.",
-    prompt: "A kanban task board with todo, doing and done columns",
-    glyph: "▦",
-    tone: "green",
-  },
-  {
-    title: "Finance dashboard",
-    blurb: "Charts, budgets and a transaction list.",
-    prompt: "A personal finance dashboard with charts, a budget and transactions",
-    glyph: "◔",
-    tone: "amber",
-  },
+const EXAMPLES = [
+  "A landing page for a coffee subscription",
+  "A kanban task board with local persistence",
+  "A personal finance dashboard",
 ];
-
-function initials(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || "A";
-}
 
 export default function HomePage() {
   const router = useRouter();
-  const { provider, openSettings } = useProvider();
-  const { openSidebar } = useAppShell();
+  const { provider } = useProvider();
   const [prompt, setPrompt] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch("/api/projects", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : { projects: [] }))
-      .then((data: { projects?: ProjectSummary[] }) => {
-        if (!cancelled) setProjects(data.projects ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setProjects([]);
-      });
-    return () => {
-      cancelled = true;
-    };
+    const params = new URLSearchParams(window.location.search);
+    const incoming = params.get("prompt");
+    if (!incoming) return;
+    setPrompt(incoming);
+    window.history.replaceState(null, "", window.location.pathname);
+    window.setTimeout(() => promptRef.current?.focus(), 120);
   }, []);
 
   async function start() {
@@ -75,6 +40,7 @@ export default function HomePage() {
     if (!text || creating) return;
     setCreating(true);
     setError(null);
+    setModelMenuOpen(false);
     try {
       const response = await fetch("/api/projects", {
         method: "POST",
@@ -92,49 +58,37 @@ export default function HomePage() {
 
   function useTemplate(value: string) {
     setPrompt(value);
-    promptRef.current?.focus();
+    document.querySelector(".home-v2")?.scrollTo({ top: 0, behavior: "smooth" });
+    window.setTimeout(() => promptRef.current?.focus(), 180);
   }
 
-  const keyless = isKeylessProvider(provider);
-  const access = isDemo(provider) ? "Demo" : keyless ? "No key" : "API key";
+  const featured = TEMPLATES.filter((template) => template.featured).slice(0, 3);
+  const demo = isDemo(provider);
 
   return (
-    <div className="home">
+    <div className="home-v2">
       <ConstellationBackground />
-      <div className="home-glow" aria-hidden="true" />
+      <div className="home-aurora" aria-hidden="true" />
 
-      <header className="home-bar">
-        <button type="button" className="menu-btn" onClick={openSidebar} aria-label="Open projects">
-          ☰
-        </button>
-        <div className="home-bar-title">
-          <h2>Workspace</h2>
-          <span>Build and manage your apps</span>
-        </div>
-        <div className="home-bar-actions">
-          <button type="button" className="ghost-btn" onClick={openSettings}>
-            Model settings
-          </button>
-        </div>
-      </header>
+      <div className="home-inner">
+        <section className="home-hero">
+          <span className="home-eyebrow">
+            <span className="home-eyebrow-dot" />
+            Open models. Local files. No lock-in.
+          </span>
+          <h1>What do you want to build?</h1>
+          <p className="home-sub">
+            Describe the app in plain language. Cygnus writes real files, runs the preview,
+            and keeps every project on your machine.
+          </p>
 
-      <div className="home-canvas">
-        <section className="build-card">
-          <div className="build-head">
-            <div>
-              <span className="kicker">New app</span>
-              <h1>What should we build?</h1>
-              <p className="build-sub">
-                Describe it in plain language. Cygnus writes the files and previews the app live.
-              </p>
-            </div>
-            <span className="build-mode">
-              <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
-              {access}
-            </span>
-          </div>
-
-          <div className="composer">
+          <form
+            className="hero-composer"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void start();
+            }}
+          >
             <textarea
               ref={promptRef}
               value={prompt}
@@ -145,147 +99,104 @@ export default function HomePage() {
                   void start();
                 }
               }}
-              rows={4}
-              placeholder="A landing page for a coffee subscription…"
+              rows={3}
+              placeholder="Ask Cygnus to build…"
               aria-label="Describe the app you want to build"
             />
-            <div className="composer-row">
-              <div className="composer-model-wrap">
-                <button
-                  type="button"
-                  className="model-chip"
-                  aria-expanded={modelMenuOpen}
-                  aria-haspopup="dialog"
-                  onClick={() => setModelMenuOpen((value) => !value)}
-                >
-                  <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
-                  {providerLabel(provider)}
-                  <span aria-hidden="true" className="composer-model-caret">
-                    ⌄
-                  </span>
-                </button>
-                {modelMenuOpen ? (
-                  <ModelMenu
-                    placement="down"
-                    onClose={() => setModelMenuOpen(false)}
-                    onManage={() => {
-                      setModelMenuOpen(false);
-                      openSettings();
-                    }}
-                  />
-                ) : null}
+
+            <div className="hero-composer-bar">
+              <div className="hero-composer-tools">
+                <span className="hero-build-mode">
+                  <Icon name="sparkles" size={14} />
+                  Build
+                </span>
+                <span className="hero-tool-divider" aria-hidden="true" />
+                <div className="hero-model-wrap">
+                  <button
+                    type="button"
+                    className="hero-model-trigger"
+                    aria-expanded={modelMenuOpen}
+                    aria-haspopup="dialog"
+                    onClick={() => setModelMenuOpen((value) => !value)}
+                  >
+                    <span className={`status-dot ${demo ? "demo" : "live"}`} />
+                    <span className="hero-model-prefix">Model</span>
+                    <strong>{providerLabel(provider)}</strong>
+                    <Icon name="chevronDown" size={13} />
+                  </button>
+                  {modelMenuOpen ? (
+                    <ModelMenu
+                      onClose={() => setModelMenuOpen(false)}
+                      onManage={() => router.push("/settings")}
+                    />
+                  ) : null}
+                </div>
               </div>
+
               <button
-                type="button"
-                className="primary-btn"
-                onClick={() => void start()}
+                type="submit"
+                className="hero-send"
                 disabled={!prompt.trim() || creating}
+                aria-label={creating ? "Creating workspace" : "Build this app"}
               >
-                {creating ? "Starting…" : "Build"}
+                <Icon name="send" size={17} />
               </button>
             </div>
-            <p className="composer-note">
-              {isDemo(provider)
-                ? "Demo mode writes a sample app. Pick a model for real builds."
-                : keyless
-                  ? `No API key needed with ${providerLabel(provider)}.`
-                  : `Using ${providerLabel(provider)} with a key stored in this browser.`}{" "}
-              Enter builds, Shift+Enter adds a line.
-            </p>
-          </div>
+          </form>
 
-          <div className="prompt-chips">
-            {[
-              "A landing page for a coffee subscription",
-              "A kanban task board",
-              "A personal finance dashboard",
-            ].map((idea) => (
+          <p className="hero-composer-note">
+            {demo
+              ? "Offline demo is selected. Pick an open model for real builds."
+              : `${provider.model} · ${providerLabel(provider)}`}
+            <span>Enter to build · Shift+Enter for a new line</span>
+          </p>
+
+          {error ? <p className="hero-error">{error}</p> : null}
+
+          <div className="example-row">
+            <span className="example-label">Try</span>
+            {EXAMPLES.map((idea) => (
               <button key={idea} type="button" onClick={() => useTemplate(idea)}>
                 {idea}
               </button>
             ))}
           </div>
 
-          {error ? <p className="form-error">{error}</p> : null}
+          <div className="home-quicklinks">
+            <Link href="/templates">
+              Browse templates <Icon name="arrowUpRight" size={13} />
+            </Link>
+            <Link href="/plugins">
+              Local model runtimes <Icon name="arrowUpRight" size={13} />
+            </Link>
+          </div>
         </section>
 
-        <section className="section-card recent-card">
-            <div className="section-head">
-              <div>
-                <h2>Recent projects</h2>
-                <p>Continue where you left off</p>
-              </div>
-              <div className="section-tools">
-                <span>
-                  {projects.length} {projects.length === 1 ? "project" : "projects"}
-                </span>
-                <button
-                  type="button"
-                  className="section-action"
-                  onClick={() => promptRef.current?.focus()}
-                >
-                  + New
-                </button>
-              </div>
-            </div>
-
-            <div className="project-entries">
-              {projects.map((project, index) => (
-                <Link key={project.id} href={`/build/${project.id}`} className="project-entry">
-                  <span className={`project-badge thumb-${index % 3}`}>
-                    {initials(project.name)}
-                  </span>
-                  <span className="project-entry-main">
-                    <strong>{project.name}</strong>
-                    <span>
-                      {project.fileCount ?? 0} files ·{" "}
-                      {new Date(project.createdAt).toLocaleDateString()}
-                    </span>
-                  </span>
-                  <span className="project-entry-open">Open →</span>
-                </Link>
-              ))}
-
-              {projects.length === 0 ? (
-                <button
-                  type="button"
-                  className="project-entry project-entry-empty"
-                  onClick={() => promptRef.current?.focus()}
-                >
-                  <span className="project-badge">+</span>
-                  <span className="project-entry-main">
-                    <strong>Start a new app</strong>
-                    <span>Describe it in the prompt above</span>
-                  </span>
-                </button>
-              ) : null}
-            </div>
-          </section>
-
-
-        <section className="templates-block">
-          <div className="section-head">
+        <section className="home-featured">
+          <div className="home-section-head">
             <div>
-              <h2>Templates</h2>
-              <p>Start from a shape, then change everything</p>
+              <span className="home-section-eyebrow">Curated starts</span>
+              <h2>Start with a shape</h2>
             </div>
+            <Link href="/templates" className="home-section-link">
+              All templates <Icon name="arrowRight" size={14} />
+            </Link>
           </div>
-          <div className="template-grid">
-            {TEMPLATES.map((template) => (
-              <button
-                key={template.title}
-                type="button"
-                className="template-card"
-                onClick={() => useTemplate(template.prompt)}
-              >
-                <span className={`template-icon ${template.tone}`}>{template.glyph}</span>
-                <strong>{template.title}</strong>
-                <p>{template.blurb}</p>
-                <span className="template-use">Use template →</span>
-              </button>
+          <div className="home-featured-grid">
+            {featured.map((template) => (
+              <TemplateCard
+                key={template.id}
+                template={template}
+                onUse={() => useTemplate(template.prompt)}
+              />
             ))}
           </div>
         </section>
+
+        <footer className="home-footer">
+          <span>MIT licensed · local-first</span>
+          <span>{new Date().getFullYear()} · Cygnus</span>
+        </footer>
       </div>
     </div>
   );

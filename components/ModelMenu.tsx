@@ -1,35 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import Icon from "./Icon";
 import { useProvider } from "./ProviderContext";
 import { normalizeBaseUrl } from "@/lib/endpoints";
-import { PRESETS, loadProviderKey, type ProviderPreset } from "@/lib/providers";
-
-const OPEN_SOURCE_IDS = new Set(["groq", "deepseek", "together", "cerebras"]);
-
-type LocalServer = {
-  id: string;
-  label: string;
-  baseUrl: string;
-  models: string[];
-};
+import {
+  MODEL_TIERS,
+  OPEN_SOURCE_MODELS,
+  type ModelTier,
+  type OpenModel,
+} from "@/lib/modelCatalog";
+import { loadProviderKey } from "@/lib/providers";
 
 export default function ModelMenu({
   onClose,
   onManage,
-  placement = "up",
 }: {
   onClose: () => void;
   onManage: () => void;
-  placement?: "up" | "down";
 }) {
   const { provider, chooseProvider } = useProvider();
+  const current = OPEN_SOURCE_MODELS.find(
+    (entry) =>
+      entry.model === provider.model &&
+      normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl),
+  );
+  const [tier, setTier] = useState<ModelTier>(current?.tier ?? "balanced");
   const [query, setQuery] = useState("");
-  const [scan, setScan] = useState<{
-    loading: boolean;
-    done: boolean;
-    servers: LocalServer[];
-  }>({ loading: false, done: false, servers: [] });
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -39,198 +37,226 @@ export default function ModelMenu({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const matches = (preset: ProviderPreset) =>
-    `${preset.label} ${preset.model} ${preset.blurb}`.toLowerCase().includes(query.trim().toLowerCase());
+  const tierInfo = MODEL_TIERS.find((item) => item.id === tier) ?? MODEL_TIERS[1];
 
-  const local = PRESETS.filter((preset) => preset.group === "local" && !preset.custom).filter(matches);
-  const open = PRESETS.filter((preset) => OPEN_SOURCE_IDS.has(preset.id)).filter(matches);
-  const cloud = PRESETS.filter(
-    (preset) => preset.group === "cloud" && !preset.demo && !preset.free && !OPEN_SOURCE_IDS.has(preset.id),
-  ).filter(matches);
-  const free = PRESETS.filter((preset) => preset.demo).filter(matches);
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return OPEN_SOURCE_MODELS.filter((entry) => {
+      if (entry.tier !== tier) return false;
+      if (!needle) return true;
+      return `${entry.name} ${entry.provider} ${entry.note} ${entry.model}`
+        .toLowerCase()
+        .includes(needle);
+    });
+  }, [tier, query]);
 
-  function pick(preset: ProviderPreset) {
-    const baseUrl = normalizeBaseUrl(preset.baseUrl);
-    const apiKey =
-      preset.demo || preset.local || preset.free || preset.custom
-        ? ""
-        : loadProviderKey(baseUrl);
-    const config = { baseUrl, model: preset.model, apiKey, label: preset.label };
-    chooseProvider(config);
+  const recommended = visible.filter((entry) => entry.recommended);
+  const local = visible.filter((entry) => entry.local && !entry.recommended);
+  const hosted = visible.filter((entry) => !entry.local && !entry.recommended);
 
-    if (preset.custom || (preset.needsKey && !apiKey)) {
-      onClose();
+  function choose(entry: OpenModel) {
+    const baseUrl = normalizeBaseUrl(entry.baseUrl);
+    const apiKey = entry.local ? "" : loadProviderKey(baseUrl);
+    chooseProvider({
+      baseUrl,
+      model: entry.model,
+      apiKey,
+      label: entry.provider,
+    });
+    onClose();
+
+    if (!entry.local && !apiKey) {
       onManage();
       return;
     }
 
-    if (preset.local && !preset.demo) {
+    if (entry.local && entry.model === "local-model") {
       fetch("/api/models", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ baseUrl, apiKey }),
+        body: JSON.stringify({ baseUrl }),
       })
         .then((response) => (response.ok ? response.json() : null))
         .then((data: { models?: string[] } | null) => {
           const first = data?.models?.[0];
-          if (first) chooseProvider({ ...config, model: first });
+          if (!first) return;
+          chooseProvider({ baseUrl, model: first, apiKey: "", label: entry.provider });
         })
-        .catch(() => undefined);
-    }
-
-    onClose();
-  }
-
-  async function scanLocal() {
-    setScan((previous) => ({ ...previous, loading: true }));
-    try {
-      const response = await fetch("/api/local-models", { cache: "no-store" });
-      const data = (await response.json().catch(() => ({}))) as { servers?: LocalServer[] };
-      setScan({
-        loading: false,
-        done: true,
-        servers: Array.isArray(data.servers) ? data.servers : [],
-      });
-    } catch {
-      setScan({ loading: false, done: true, servers: [] });
+        .catch(() => {
+          // The saved endpoint still works; model discovery can be retried in Settings.
+        });
     }
   }
 
-  function chooseLocal(server: LocalServer, model: string) {
-    chooseProvider({
-      baseUrl: server.baseUrl,
-      model,
-      apiKey: "",
-      label: server.label,
-    });
-    onClose();
-  }
+  if (typeof document === "undefined") return null;
 
-  function row(preset: ProviderPreset) {
-    const active =
-      normalizeBaseUrl(provider.baseUrl) === normalizeBaseUrl(preset.baseUrl) &&
-      provider.model === preset.model;
-    const title = preset.local || preset.custom ? preset.label : preset.model;
-    const subtitle =
-      preset.local || preset.custom ? preset.blurb : `${preset.label} · ${preset.blurb}`;
-
-    return (
-      <button
-        key={preset.id}
-        type="button"
-        className={`mm-row ${active ? "active" : ""}`}
-        onClick={() => pick(preset)}
+  return createPortal(
+    <div
+      className="model-picker-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="model-picker"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="model-picker-title"
       >
-        <span className="mm-main">
-          <span className="mm-title">{title}</span>
-          <span className="mm-sub">{subtitle}</span>
-        </span>
-        <span
-          className={`mm-badge ${
-            preset.demo || preset.free ? "free" : preset.local || preset.custom ? "local" : "key"
-          }`}
-        >
-          {preset.demo || preset.free ? "No key" : preset.local || preset.custom ? "Local" : "API key"}
-        </span>
-        {active ? <span className="mm-check">✓</span> : null}
-      </button>
-    );
-  }
-
-  const total = local.length + open.length + cloud.length + free.length;
-
-  return (
-    <>
-      <button
-        type="button"
-        className="menu-scrim"
-        aria-label="Close model picker"
-        onClick={onClose}
-      />
-      <div className={`model-menu ${placement}`} role="dialog" aria-label="Choose a model">
-        <div className="mm-head">
+        <header className="mp-head">
           <div>
-            <strong>Model</strong>
-            <span>Local models need no key. Keys stay in your browser.</span>
+            <span className="mp-eyebrow">
+              <span className="mp-eyebrow-dot" />
+              Open source only
+            </span>
+            <h2 id="model-picker-title">Choose a model</h2>
           </div>
-          <button type="button" className="mm-manage" onClick={onManage}>
-            Manage
+          <button type="button" className="mp-close" onClick={onClose} aria-label="Close model picker">
+            <Icon name="close" size={17} />
           </button>
-        </div>
+        </header>
 
-        <input
-          className="mm-search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search models…"
-          aria-label="Search models"
-          spellCheck={false}
-          autoFocus
-        />
-
-        <div className="mm-list">
-          {total === 0 ? <p className="mm-empty">No models match “{query}”.</p> : null}
-
-          {local.length > 0 ? <div className="mm-label">Local · no key</div> : null}
-          <div className="mm-scanline">
+        <div className="mp-tiers" role="tablist" aria-label="Model capability tier">
+          {MODEL_TIERS.map((item) => (
             <button
+              key={item.id}
               type="button"
-              className="mm-scan"
-              onClick={() => void scanLocal()}
-              disabled={scan.loading}
+              role="tab"
+              aria-selected={tier === item.id}
+              className={`mp-tier ${tier === item.id ? "active" : ""}`}
+              onClick={() => setTier(item.id)}
             >
-              {scan.loading ? "Scanning…" : "Scan this machine"}
+              <span>{item.label}</span>
+              <i aria-hidden="true" />
             </button>
-            {scan.done && scan.servers.length === 0 ? (
-              <span>No local servers found</span>
-            ) : null}
-          </div>
-          {local.map(row)}
-          {scan.servers.map((server) =>
-            server.models.length === 0 ? (
-              <p className="mm-scan-note" key={`${server.id}-${server.baseUrl}`}>
-                {server.label} is running, but has no models loaded.
-              </p>
-            ) : (
-              server.models.slice(0, 4).map((model) => (
-                <button
-                  key={`${server.id}-${model}`}
-                  type="button"
-                  className="mm-row"
-                  onClick={() => chooseLocal(server, model)}
-                >
-                  <span className="mm-main">
-                    <span className="mm-title">{model}</span>
-                    <span className="mm-sub">{server.label} · running locally</span>
-                  </span>
-                  <span className="mm-badge local">Local</span>
-                </button>
-              ))
-            ),
-          )}
-          {scan.done && scan.servers.some((server) => server.models.length === 0) ? (
-            <p className="mm-scan-note">
-              Pull a tool-capable model: <code>ollama pull qwen3.5:4b</code>
-            </p>
+          ))}
+        </div>
+        <p className="mp-tier-hint">{tierInfo.hint}</p>
+
+        <label className="mp-search">
+          <Icon name="search" size={14} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search open models"
+            aria-label="Search open models"
+            spellCheck={false}
+          />
+          {query ? (
+            <button type="button" onClick={() => setQuery("")} aria-label="Clear search">
+              <Icon name="close" size={12} />
+            </button>
+          ) : null}
+        </label>
+
+        <div className="mp-scroll">
+          {visible.length === 0 ? (
+            <p className="mp-empty">No open models match “{query}”.</p>
           ) : null}
 
-          {open.length > 0 ? <div className="mm-label">Open source · API key</div> : null}
-          {open.map(row)}
+          {recommended.length > 0 ? (
+            <section className="mp-group">
+              <div className="mp-group-label">Recommended</div>
+              {recommended.map((entry) => (
+                <ModelRow
+                  key={entry.id}
+                  entry={entry}
+                  active={
+                    entry.model === provider.model &&
+                    normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl)
+                  }
+                  onChoose={() => choose(entry)}
+                />
+              ))}
+            </section>
+          ) : null}
 
-          {cloud.length > 0 ? <div className="mm-label">Cloud · API key</div> : null}
-          {cloud.map(row)}
+          {local.length > 0 ? (
+            <section className="mp-group">
+              <div className="mp-group-label">Local · no key</div>
+              {local.map((entry) => (
+                <ModelRow
+                  key={entry.id}
+                  entry={entry}
+                  active={
+                    entry.model === provider.model &&
+                    normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl)
+                  }
+                  onChoose={() => choose(entry)}
+                />
+              ))}
+            </section>
+          ) : null}
 
-          {free.length > 0 ? <div className="mm-label">Offline demo</div> : null}
-          {free.map(row)}
+          {hosted.length > 0 ? (
+            <section className="mp-group">
+              <div className="mp-group-label">Hosted open-weight · API key</div>
+              {hosted.map((entry) => (
+                <ModelRow
+                  key={entry.id}
+                  entry={entry}
+                  active={
+                    entry.model === provider.model &&
+                    normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl)
+                  }
+                  onChoose={() => choose(entry)}
+                />
+              ))}
+            </section>
+          ) : null}
         </div>
 
-        <div className="mm-foot">
-          <span>Free + local need no key</span>
+        <footer className="mp-foot">
+          <span>Keys and cloud models live in Settings.</span>
           <button type="button" onClick={onManage}>
-            All models ↗
+            All models <Icon name="arrowUpRight" size={13} />
           </button>
-        </div>
+        </footer>
       </div>
-    </>
+    </div>,
+    document.body,
+  );
+}
+
+function ModelRow({
+  entry,
+  active,
+  onChoose,
+}: {
+  entry: OpenModel;
+  active: boolean;
+  onChoose: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`mp-row ${active ? "active" : ""}`}
+      onClick={onChoose}
+      aria-pressed={active}
+    >
+      <span className="mp-row-mark" aria-hidden="true">
+        {entry.name.charAt(0)}
+      </span>
+      <span className="mp-row-main">
+        <span className="mp-row-title">
+          {entry.name}
+          {entry.recommended ? <em className="mp-badge rec">Recommended</em> : null}
+          {entry.badge ? <em className="mp-badge">{entry.badge}</em> : null}
+        </span>
+        <span className="mp-row-sub">
+          {entry.provider} · {entry.note}
+        </span>
+      </span>
+      <span className="mp-row-side">
+        <span className={`mp-access ${entry.local ? "local" : ""}`}>
+          {entry.local ? "No key" : "API key"}
+        </span>
+        {active ? (
+          <span className="mp-check" aria-label="Selected">
+            <Icon name="check" size={13} />
+          </span>
+        ) : null}
+      </span>
+    </button>
   );
 }

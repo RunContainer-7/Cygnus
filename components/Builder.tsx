@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useAppShell } from "@/components/AppShell";
 import FileDrawer from "@/components/FileDrawer";
 import ModelMenu from "@/components/ModelMenu";
 import { useProvider } from "@/components/ProviderContext";
@@ -56,8 +55,8 @@ export default function Builder({
   projectId: string;
   initialPrompt: string | null;
 }) {
-  const { provider, openSettings } = useProvider();
-  const { openSidebar } = useAppShell();
+  const router = useRouter();
+  const { provider } = useProvider();
   const [project, setProject] = useState<ProjectData | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -282,35 +281,6 @@ export default function Builder({
 
   return (
     <div className="builder">
-      <header className="builder-bar">
-        <div className="builder-bar-left">
-          <button
-            type="button"
-            className="menu-btn"
-            onClick={openSidebar}
-            aria-label="Open projects"
-          >
-            ☰
-          </button>
-          <Link href="/" className="builder-crumb">
-            Projects
-          </Link>
-          <span className="builder-crumb-sep" aria-hidden="true">
-            /
-          </span>
-          <div className="project-title">
-            <strong>{project?.name ?? "Workspace"}</strong>
-          </div>
-        </div>
-
-        <div className="builder-bar-right">
-          <button type="button" className="model-pill" onClick={openSettings}>
-            <span className={`status-dot ${isDemo(provider) ? "demo" : "live"}`} />
-            <span className="pill-label">{providerLabel(provider)}</span>
-          </button>
-        </div>
-      </header>
-
       <nav
         className={`workspace-tabs ${mobileView === "chat" ? "chat-open" : ""}`}
         role="tablist"
@@ -505,7 +475,7 @@ export default function Builder({
                     onClose={() => setModelMenuOpen(false)}
                     onManage={() => {
                       setModelMenuOpen(false);
-                      openSettings();
+                      router.push("/settings");
                     }}
                   />
                 ) : null}
@@ -781,7 +751,7 @@ export default function Builder({
                 <strong>{files.length}</strong>
               </div>
               <div className="settings-actions">
-                <button type="button" onClick={openSettings}>
+                <button type="button" onClick={() => router.push("/settings")}>
                   Manage models
                 </button>
                 <button type="button" onClick={() => setRelease((value) => value + 1)}>

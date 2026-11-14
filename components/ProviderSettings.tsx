@@ -19,11 +19,13 @@ const LOCAL_PRESETS = PRESETS.filter((preset) => preset.group === "local");
 
 export default function ProviderSettings({
   open,
+  embedded = false,
   onClose,
   provider,
   onSave,
 }: {
   open: boolean;
+  embedded?: boolean;
   onClose: () => void;
   provider: ProviderConfig;
   onSave: (provider: ProviderConfig) => void;
@@ -40,7 +42,7 @@ export default function ProviderSettings({
   const [modelNote, setModelNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open && !embedded) return;
     const preset = PRESETS.find(
       (item) =>
         item.baseUrl && normalizeBaseUrl(item.baseUrl) === normalizeBaseUrl(provider.baseUrl),
@@ -59,18 +61,18 @@ export default function ProviderSettings({
     setModels([]);
     setModelNote(null);
     setFetching(false);
-  }, [open, provider]);
+  }, [open, embedded, provider]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || embedded) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, embedded, onClose]);
 
-  if (!open) return null;
+  if (!open && !embedded) return null;
 
   const isDemoDraft = isDemo(draft);
   const isLocalDraft = isLocalEndpoint(draft.baseUrl) && !isDemoDraft;
@@ -256,17 +258,11 @@ export default function ProviderSettings({
     ? "Offline demo"
     : matchedPreset?.label ?? (draft.label || "Custom endpoint");
 
-  return (
-    <div
-      className="modal-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
+  const panel = (
       <div
-        className="model-panel"
-        role="dialog"
-        aria-modal="true"
+        className={`model-panel ${embedded ? "embedded" : ""}`}
+        role={embedded ? "region" : "dialog"}
+        aria-modal={embedded ? undefined : true}
         aria-labelledby="model-settings-title"
       >
         <div className="picker-head">
@@ -274,9 +270,11 @@ export default function ProviderSettings({
             <h2 id="model-settings-title">Models</h2>
             <p>Choose what writes your app. Bring a key or run a local model.</p>
           </div>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close models">
-            ×
-          </button>
+          {!embedded ? (
+            <button type="button" className="icon-btn" onClick={onClose} aria-label="Close models">
+              ×
+            </button>
+          ) : null}
         </div>
 
         <div className="picker-meter">
@@ -478,6 +476,18 @@ export default function ProviderSettings({
           </div>
         </div>
       </div>
+  );
+
+  if (embedded) return <div className="settings-embed">{panel}</div>;
+
+  return (
+    <div
+      className="modal-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      {panel}
     </div>
   );
 }
