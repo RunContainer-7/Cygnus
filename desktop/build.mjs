@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { cp, mkdir, readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { build } from "esbuild";
 
 const root = process.cwd();
 const nextDir = path.join(root, ".next");
@@ -50,6 +51,23 @@ async function findEnvFiles(directory) {
   return found;
 }
 
+async function bundleMain() {
+  const outfile = path.join(root, "desktop", "main.bundle.cjs");
+  await build({
+    entryPoints: [path.join(root, "desktop", "main.cjs")],
+    outfile,
+    bundle: true,
+    platform: "node",
+    format: "cjs",
+    target: "node22",
+    external: ["electron"],
+    sourcemap: false,
+    logLevel: "silent",
+  });
+  const info = await stat(outfile);
+  console.log(`\nDesktop main bundle ready: desktop/main.bundle.cjs (${Math.round(info.size / 1024)} KB)`);
+}
+
 async function stage() {
   try {
     await stat(path.join(standalone, "server.js"));
@@ -95,6 +113,7 @@ async function stage() {
 try {
   runNextBuild();
   await stage();
+  await bundleMain();
 } catch (error) {
   console.error(`\nDesktop build failed: ${error.message}`);
   process.exit(1);

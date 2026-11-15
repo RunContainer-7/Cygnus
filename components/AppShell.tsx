@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import Icon, { type IconName } from "./Icon";
 import Logo from "./Logo";
+import UpdateToast from "./UpdateToast";
 import { useProvider } from "./ProviderContext";
 import { providerLabel } from "@/lib/providers";
 
@@ -372,6 +373,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <main className="shell-main">{children}</main>
       </div>
+
+      <UpdateToast />
     </div>
   );
 }

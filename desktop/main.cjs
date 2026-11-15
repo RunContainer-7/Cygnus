@@ -5,6 +5,7 @@ const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const net = require("node:net");
 const path = require("node:path");
+const updater = require("./updater.cjs");
 
 const APP_ID = "com.cygnus.builder";
 const isDev = !app.isPackaged;
@@ -172,6 +173,7 @@ function createMainWindow() {
     title: "Cygnus",
     autoHideMenuBar: true,
     webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -186,6 +188,7 @@ function createMainWindow() {
     splashWindow = null;
     mainWindow.show();
     logLine("Main window ready.");
+    updater.startUpdateChecks();
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -200,6 +203,7 @@ function createMainWindow() {
             backgroundColor: "#04050c",
             autoHideMenuBar: true,
             webPreferences: {
+              preload: path.join(__dirname, "preload.cjs"),
               contextIsolation: true,
               nodeIntegration: false,
               sandbox: true,
@@ -262,6 +266,13 @@ function buildMenu() {
     {
       label: "Help",
       submenu: [
+        {
+          label: "Check for updates",
+          click: () => {
+            void updater.checkForUpdates(true);
+          },
+        },
+        { type: "separator" },
         {
           label: "About Cygnus",
           click: () => {
@@ -372,6 +383,14 @@ async function bootstrap() {
   serverOrigin = `http://127.0.0.1:${port}`;
   startServer(port);
   await waitForServer();
+  updater.setupUpdater({
+    logLine,
+    beforeInstall: async () => {
+      shuttingDown = true;
+      await stopServer();
+      serverLogStream?.end();
+    },
+  });
   createMainWindow();
 }
 

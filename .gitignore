@@ -13,4 +13,6 @@ workspaces/
 artifacts/
 next-env.d.ts
 tsconfig.tsbuildinfo
+desktop/main.bundle.cjs
+desktop/main.bundle.cjs.map
 *.log

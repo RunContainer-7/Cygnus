@@ -14,13 +14,15 @@
     "typecheck": "tsc --noEmit",
     "desktop:build": "node desktop/build.mjs",
     "desktop": "npm run desktop:build && electron .",
-    "dist": "npm run desktop:build && electron-builder --win",
-    "dist:dir": "npm run desktop:build && electron-builder --win --dir",
-    "dist:portable": "npm run desktop:build && electron-builder --win portable",
+    "dist": "npm run desktop:build && electron-builder --win --publish never",
+    "dist:dir": "npm run desktop:build && electron-builder --win --dir --publish never",
+    "dist:portable": "npm run desktop:build && electron-builder --win portable --publish never",
+    "dist:publish": "npm run desktop:build && electron-builder --win --publish always",
     "gateway": "python3 -m respan_gateway",
     "gateway:check": "python3 -m respan_gateway check"
   },
   "dependencies": {
+    "electron-updater": "^6.8.11",
     "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1"
@@ -31,6 +33,7 @@
     "@types/react-dom": "latest",
     "electron": "^45.3.2",
     "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
     "typescript": "latest"
   },
   "build": {
@@ -39,13 +42,25 @@
     "copyright": "Copyright © 2026 Cygnus contributors",
     "asar": true,
     "npmRebuild": false,
+    "extraMetadata": {
+      "main": "desktop/main.bundle.cjs"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "RunContainer-7",
+        "repo": "Cygnus",
+        "releaseType": "release"
+      }
+    ],
     "directories": {
       "output": "release",
       "buildResources": "desktop/build"
     },
     "afterPack": "desktop/after-pack.cjs",
     "files": [
-      "desktop/main.cjs",
+      "desktop/main.bundle.cjs",
+      "desktop/preload.cjs",
       "desktop/splash.html",
       "package.json",
       "!node_modules/**/*",

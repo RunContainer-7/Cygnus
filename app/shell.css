@@ -3439,3 +3439,186 @@ body {
   max-height: none;
   overflow: visible;
 }
+
+/* ---------- desktop update toast ---------- */
+
+.update-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 320;
+  display: grid;
+  grid-template-areas:
+    "mark copy close"
+    "progress progress progress"
+    "actions actions actions";
+  grid-template-columns: 34px minmax(0, 1fr) 22px;
+  gap: 9px 11px;
+  width: min(372px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid rgba(184, 221, 190, 0.2);
+  border-radius: 13px;
+  background: linear-gradient(180deg, rgba(20, 24, 21, 0.98), rgba(10, 12, 11, 0.99));
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  animation: update-in 260ms cubic-bezier(0.22, 0.8, 0.28, 1) both;
+}
+
+.update-toast-mark {
+  display: grid;
+  grid-area: mark;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgba(184, 221, 190, 0.2);
+  border-radius: 9px;
+  background: rgba(184, 221, 190, 0.08);
+  color: var(--shell-mint);
+}
+
+.update-toast-copy {
+  min-width: 0;
+  grid-area: copy;
+}
+
+.update-toast-copy strong {
+  display: block;
+  color: #eef0e9;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.update-toast-copy p {
+  margin: 3px 0 0;
+  color: #858c82;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.update-toast-copy .update-toast-error {
+  color: #e2a7a0;
+}
+
+.update-toast-dismiss {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  grid-area: close;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #6d746b;
+  cursor: pointer;
+}
+
+.update-toast-dismiss:hover:not(:disabled) {
+  background: #1b1e1c;
+  color: #d5d8d0;
+}
+
+.update-toast-dismiss:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.update-progress {
+  height: 3px;
+  grid-area: progress;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.update-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #84b991, #d5e6cb);
+  transition: width 160ms ease;
+}
+
+.update-toast-actions {
+  display: flex;
+  grid-area: actions;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.update-toast-actions button {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.update-later {
+  border: 0;
+  background: transparent;
+  color: #7e857b;
+}
+
+.update-later:hover {
+  color: #d5d8d0;
+}
+
+.update-action {
+  border: 1px solid rgba(184, 221, 190, 0.24);
+  background: var(--shell-cream);
+  color: #0b0c0b;
+}
+
+.update-action:hover:not(:disabled) {
+  background: #fffdf5;
+}
+
+.update-action:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.update-error .update-toast-mark {
+  border-color: rgba(226, 167, 160, 0.22);
+  background: rgba(226, 167, 160, 0.08);
+  color: #e2a7a0;
+}
+
+.update-manual .update-toast-mark {
+  border-color: rgba(214, 199, 143, 0.22);
+  background: rgba(214, 199, 143, 0.08);
+  color: #dfcf9c;
+}
+
+@keyframes update-in {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 520px) {
+  .update-toast {
+    right: 12px;
+    bottom: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-toast {
+    animation: none;
+  }
+
+  .update-progress span {
+    transition: none;
+  }
+}
