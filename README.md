@@ -15,7 +15,7 @@ Open http://localhost:3000. It starts on **Nemotron 3.5 Lightning**, a hosted op
 
 ## Download for Windows
 
-The latest release is **[v0.1.0](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.0)**:
+The latest published installer release is **[v0.1.0](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.0)**. The source tree is now v0.1.1; the v0.1.0 installers below predate the hosted-model update.
 
 - [Cygnus-Setup-0.1.0.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.0/Cygnus-Setup-0.1.0.exe) — 123 MB installer with Start Menu and desktop shortcuts.
 - [Cygnus-Portable-0.1.0.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.0/Cygnus-Portable-0.1.0.exe) — 111 MB portable build that runs without installing.
@@ -34,8 +34,8 @@ npm run dist
 
 That produces two files in `release/`:
 
-- `Cygnus-Setup-0.1.0.exe` — a normal setup wizard with Start menu and desktop shortcuts.
-- `Cygnus-Portable-0.1.0.exe` — runs without installing anything.
+- `Cygnus-Setup-0.1.1.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.1.1.exe` — runs without installing anything.
 
 Rebuild the installer after changes to package a new version.
 

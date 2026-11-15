@@ -1,8 +1,8 @@
 {
   "name": "cygnus",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
-  "description": "Free, open-source AI app builder. Bring your own model or run one locally.",
+  "description": "Free, open-source AI app builder with hosted, local, and BYOK models.",
   "productName": "Cygnus",
   "license": "MIT",
   "author": "Cygnus contributors",
