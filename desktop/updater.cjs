@@ -179,7 +179,7 @@ async function installDownloadedUpdate() {
   log(`Installing Cygnus ${status.version ?? "update"} and restarting.`);
   try {
     await beforeInstall();
-    autoUpdater.quitAndInstall(false, true);
+    autoUpdater.quitAndInstall(true, true);
     return { ok: true };
   } catch (error) {
     installing = false;
