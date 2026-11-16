@@ -266,7 +266,7 @@ export function isDemo(provider: ProviderConfig): boolean {
 }
 
 export function isHosted(provider: ProviderConfig): boolean {
-  return provider.baseUrl === HOSTED_BASE_URL;
+  return normalizeBaseUrl(provider.baseUrl) === HOSTED_BASE_URL;
 }
 
 export function isKeylessProvider(provider: ProviderConfig): boolean {
@@ -284,7 +284,14 @@ export function providerLabel(provider: ProviderConfig): string {
     return findHostedModel(provider.model)?.name ?? "Cygnus Hosted";
   }
   const normalized = normalizeBaseUrl(provider.baseUrl);
-  const preset = PRESETS.find((item) => item.baseUrl && item.baseUrl === normalized);
+  const preset =
+    PRESETS.find(
+      (item) =>
+        item.baseUrl &&
+        normalizeBaseUrl(item.baseUrl) === normalized &&
+        item.label === provider.label,
+    ) ??
+    PRESETS.find((item) => item.baseUrl && normalizeBaseUrl(item.baseUrl) === normalized);
   if (preset) return preset.label;
   if (provider.label) return provider.label;
   try {

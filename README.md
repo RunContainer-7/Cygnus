@@ -15,13 +15,13 @@ Open http://localhost:3000. It starts on **Nemotron 3.5 Lightning**, a hosted op
 
 ## Download for Windows
 
-The latest published installer release is **[v0.1.1](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.1)**.
+The latest published installer release is **[v0.1.2](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.2)**.
 
-- [Cygnus-Setup-0.1.1.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.1/Cygnus-Setup-0.1.1.exe) — 124 MB installer with Start Menu and desktop shortcuts.
-- [Cygnus-Portable-0.1.1.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.1/Cygnus-Portable-0.1.1.exe) — 111 MB portable build that runs without installing.
-- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.1/SHA256SUMS.txt) — checksums for both downloads.
+- [Cygnus-Setup-0.1.2.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.2/Cygnus-Setup-0.1.2.exe) — installer with Start Menu and desktop shortcuts.
+- [Cygnus-Portable-0.1.2.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.2/Cygnus-Portable-0.1.2.exe) — portable build that runs without installing.
+- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.2/SHA256SUMS.txt) — checksums for both downloads.
 
-Installed v0.1.1 copies check GitHub Releases on launch and show an in-app update button; updates download and restart in place. Portable builds show a download link instead. The earlier v0.1.0 installers do not include the updater, so updating from v0.1.0 requires this one manual install.
+Installed v0.1.1 and later copies check GitHub Releases on launch and show an in-app update button; updates download and restart in place. Portable builds show a download link instead. The earlier v0.1.0 installers do not include the updater, so updating from v0.1.0 requires this one manual install.
 
 Run the installer and choose a folder. Cygnus bundles its own local server, so Node.js, a terminal and a separate dev server are not required. Projects live in `%APPDATA%\Cygnus\workspaces`; uninstalling keeps them. The build is unsigned, so Windows SmartScreen may ask you to confirm before running it.
 
@@ -36,8 +36,8 @@ npm run dist
 
 That produces the installers plus update metadata in `release/`:
 
-- `Cygnus-Setup-0.1.1.exe` — a normal setup wizard with Start menu and desktop shortcuts.
-- `Cygnus-Portable-0.1.1.exe` — runs without installing anything.
+- `Cygnus-Setup-0.1.2.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.1.2.exe` — runs without installing anything.
 - `latest.yml` — the update feed consumed by installed copies.
 
 Rebuild the installer after changes to package a new version.

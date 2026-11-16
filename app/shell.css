@@ -2293,6 +2293,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 18px;
   background: #0c0e0d;
+  outline: none;
   box-shadow:
     0 34px 100px rgba(0, 0, 0, 0.65),
     inset 0 1px 0 rgba(255, 255, 255, 0.045);
@@ -2334,6 +2335,40 @@ body {
   letter-spacing: -0.035em;
 }
 
+.mp-head-copy {
+  min-width: 0;
+}
+
+.mp-current {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  margin: 5px 0 0;
+  color: #737a71;
+  font-size: 9px;
+}
+
+.mp-current strong {
+  overflow: hidden;
+  max-width: 220px;
+  color: #b9c0b4;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mp-current span {
+  overflow: hidden;
+  max-width: 220px;
+  color: #5f665e;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .mp-close {
   display: grid;
   width: 27px;
@@ -2353,6 +2388,14 @@ body {
   color: #e5e6e0;
 }
 
+.mp-close:focus-visible,
+.mp-access-tab:focus-visible,
+.mp-row:focus-visible,
+.mp-foot button:focus-visible {
+  outline: 2px solid rgba(184, 221, 190, 0.5);
+  outline-offset: 1px;
+}
+
 .mp-access-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -2362,9 +2405,8 @@ body {
 
 .mp-access-tab {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  align-items: center;
+  gap: 5px;
   padding: 8px 9px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
@@ -2390,17 +2432,39 @@ body {
 }
 
 .mp-access-title {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
+.mp-access-count {
+  display: inline-grid;
+  min-width: 13px;
+  height: 13px;
+  place-items: center;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #737a71;
+  font-size: 7px;
+  font-weight: 550;
+}
+
 .mp-access-sub {
   display: block;
+  overflow: hidden;
   color: #5f665e;
-  font-size: 7.5px;
+  font-size: 8px;
   line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mp-access-tab.active .mp-access-count {
+  background: rgba(184, 221, 190, 0.12);
+  color: #aac8ae;
 }
 
 .mp-access-tab.active .mp-access-sub {
@@ -2553,7 +2617,7 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 8px 8px;
+  padding: 6px 8px 8px;
   scrollbar-color: #2a2e2a transparent;
   scrollbar-width: thin;
 }
@@ -2588,8 +2652,12 @@ body {
     border-color 120ms ease;
 }
 
-.mp-row:hover {
+.mp-row:hover:not(:disabled) {
   background: #141714;
+}
+
+.mp-row:disabled {
+  cursor: wait;
 }
 
 .mp-row.active {
@@ -2631,6 +2699,46 @@ body {
   font-weight: 550;
 }
 
+.mp-tier-pill {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #7d847b;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.mp-tier-pill.balanced {
+  background: rgba(216, 200, 153, 0.08);
+  color: #b9ac82;
+}
+
+.mp-tier-pill.max {
+  background: rgba(217, 179, 166, 0.08);
+  color: #b99b90;
+}
+
+.mp-key-hint {
+  padding: 2px 5px;
+  border: 1px solid rgba(216, 200, 153, 0.12);
+  border-radius: 4px;
+  color: #b6a77c;
+  font-size: 7px;
+  white-space: nowrap;
+}
+
+.mp-error {
+  margin: 0 18px 8px;
+  padding: 7px 9px;
+  border: 1px solid rgba(216, 153, 140, 0.15);
+  border-radius: 7px;
+  background: #1b1210;
+  color: #c8a49a;
+  font-size: 8.5px;
+  line-height: 1.45;
+}
+
 .mp-row-sub {
   overflow: hidden;
   color: #6d736b;
@@ -2663,6 +2771,10 @@ body {
   flex: none;
   align-items: center;
   gap: 5px;
+}
+
+.mp-row-side .mp-check {
+  margin-left: 2px;
 }
 
 .mp-access {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { isLocalEndpoint, normalizeBaseUrl } from "@/lib/endpoints";
 import { HOSTED_BASE_URL } from "@/lib/hosted";
 import {
@@ -41,9 +41,11 @@ export default function ProviderSettings({
   const [models, setModels] = useState<string[]>([]);
   const [fetching, setFetching] = useState(false);
   const [modelNote, setModelNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const discoverToken = useRef(0);
 
   useEffect(() => {
     if (!open && !embedded) return;
+    discoverToken.current += 1;
     const preset = PRESETS.find(
       (item) =>
         item.baseUrl && normalizeBaseUrl(item.baseUrl) === normalizeBaseUrl(provider.baseUrl),
@@ -53,11 +55,12 @@ export default function ProviderSettings({
       !preset?.demo &&
       !preset?.hosted &&
       !isLocalEndpoint(provider.baseUrl);
-    setTab(requiresKey && !provider.apiKey ? "connection" : "models");
+    const savedKey = provider.apiKey || loadProviderKey(provider.baseUrl);
+    setTab(requiresKey && !savedKey ? "connection" : "models");
     setQuery("");
     setDraft({
       ...provider,
-      apiKey: provider.apiKey || loadProviderKey(provider.baseUrl),
+      apiKey: savedKey,
     });
     setTest(null);
     setTesting(false);
@@ -79,14 +82,22 @@ export default function ProviderSettings({
   if (!open && !embedded) return null;
 
   const isDemoDraft = isDemo(draft);
-  const isHostedDraft = draft.baseUrl === HOSTED_BASE_URL;
+  const isHostedDraft = normalizeBaseUrl(draft.baseUrl) === HOSTED_BASE_URL;
   const isLocalDraft = isLocalEndpoint(draft.baseUrl) && !isDemoDraft;
-  const matchedPreset = PRESETS.find((preset) => {
-    if (!preset.baseUrl || normalizeBaseUrl(preset.baseUrl) !== normalizeBaseUrl(draft.baseUrl)) {
-      return false;
-    }
-    return preset.hosted ? preset.model === draft.model : true;
-  });
+  const matchedPreset =
+    PRESETS.find((preset) => {
+      if (!preset.baseUrl || normalizeBaseUrl(preset.baseUrl) !== normalizeBaseUrl(draft.baseUrl)) {
+        return false;
+      }
+      if (preset.label !== draft.label) return false;
+      return preset.hosted ? preset.model === draft.model : true;
+    }) ??
+    PRESETS.find((preset) => {
+      if (!preset.baseUrl || normalizeBaseUrl(preset.baseUrl) !== normalizeBaseUrl(draft.baseUrl)) {
+        return false;
+      }
+      return preset.hosted ? preset.model === draft.model : true;
+    });
   const ready = Boolean(draft.baseUrl.trim() && draft.model.trim());
   const needsKey = Boolean(
     matchedPreset?.needsKey && !isLocalDraft && !isDemoDraft && !isHostedDraft,
@@ -109,6 +120,7 @@ export default function ProviderSettings({
     const baseUrl = normalizeBaseUrl(config.baseUrl);
     if (!baseUrl || baseUrl === "demo") return;
 
+    const token = ++discoverToken.current;
     setFetching(true);
     setModelNote(null);
     try {
@@ -121,6 +133,7 @@ export default function ProviderSettings({
         models?: string[];
         error?: string;
       };
+      if (token !== discoverToken.current) return;
       if (!response.ok) {
         setModels([]);
         setModelNote({ ok: false, text: data.error ?? "Could not list models." });
@@ -134,22 +147,26 @@ export default function ProviderSettings({
       });
       if (autoPick && list.length > 0) {
         setDraft((previous) =>
-          previous.model && list.includes(previous.model)
-            ? previous
-            : { ...previous, model: list[0] },
+          token === discoverToken.current &&
+          !(previous.model && list.includes(previous.model))
+            ? { ...previous, model: list[0] }
+            : previous,
         );
       }
     } catch (error) {
+      if (token !== discoverToken.current) return;
       setModelNote({
         ok: false,
         text: error instanceof Error ? error.message : "Could not list models.",
       });
     } finally {
-      setFetching(false);
+      if (token === discoverToken.current) setFetching(false);
     }
   }
 
   function choosePreset(preset: ProviderPreset) {
+    discoverToken.current += 1;
+    setFetching(false);
     const apiKey =
       preset.demo || preset.hosted || preset.local || preset.custom
         ? ""
@@ -202,7 +219,19 @@ export default function ProviderSettings({
   function save() {
     if (!ready) return;
     const baseUrl = normalizeBaseUrl(draft.baseUrl);
-    const preset = PRESETS.find((item) => item.baseUrl && normalizeBaseUrl(item.baseUrl) === baseUrl);
+    const preset =
+      PRESETS.find(
+        (item) =>
+          item.baseUrl &&
+          normalizeBaseUrl(item.baseUrl) === baseUrl &&
+          item.label === draft.label,
+      ) ??
+      PRESETS.find(
+        (item) =>
+          item.baseUrl &&
+          normalizeBaseUrl(item.baseUrl) === baseUrl &&
+          (item.hosted ? item.model === draft.model : true),
+      );
     saveProviderKey(baseUrl, draft.apiKey ?? "");
     onSave({
       baseUrl,
@@ -225,7 +254,7 @@ export default function ProviderSettings({
   function renderRows(items: ProviderPreset[]) {
     return items.map((preset) => {
       const active = preset.custom
-        ? !matchedPreset && Boolean(draft.baseUrl)
+        ? (!matchedPreset || matchedPreset.custom) && Boolean(draft.baseUrl)
         : matchedPreset?.id === preset.id;
       const title = preset.custom
         ? "Custom endpoint"
@@ -291,7 +320,8 @@ export default function ProviderSettings({
         className={`model-panel ${embedded ? "embedded" : ""}`}
         role={embedded ? "region" : "dialog"}
         aria-modal={embedded ? undefined : true}
-        aria-labelledby="model-settings-title"
+        aria-label={embedded ? "Models and connections" : undefined}
+        aria-labelledby={embedded ? undefined : "model-settings-title"}
       >
         <div className="picker-head">
           <div>
@@ -303,17 +333,6 @@ export default function ProviderSettings({
               ×
             </button>
           ) : null}
-        </div>
-
-        <div className="picker-meter">
-          <div className="picker-meter-main">
-            <strong>Hosted, local, or your key.</strong>
-            <span>
-              Hosted is free with no key. Local stays on this machine. BYOK uses your provider
-              key.
-            </span>
-          </div>
-          <span className="picker-meter-tag">3 modes</span>
         </div>
 
         <div className="picker-tabs" role="tablist" aria-label="Model settings tabs">
@@ -408,6 +427,9 @@ export default function ProviderSettings({
               <input
                 value={draft.baseUrl}
                 onChange={(event) => {
+                  discoverToken.current += 1;
+                  setFetching(false);
+                  setModels([]);
                   setDraft({ ...draft, baseUrl: event.target.value });
                   setTest(null);
                   setModelNote(null);
@@ -415,9 +437,22 @@ export default function ProviderSettings({
                 onBlur={() =>
                   setDraft((previous) => {
                     const baseUrl = normalizeBaseUrl(previous.baseUrl);
+                    const matchingPreset =
+                      PRESETS.find(
+                        (item) =>
+                          item.baseUrl &&
+                          normalizeBaseUrl(item.baseUrl) === baseUrl &&
+                          item.label === previous.label,
+                      ) ??
+                      PRESETS.find(
+                        (item) => item.baseUrl && normalizeBaseUrl(item.baseUrl) === baseUrl,
+                      );
                     return {
                       ...previous,
                       baseUrl,
+                      label: baseUrl
+                        ? (matchingPreset?.label ?? "Custom endpoint")
+                        : previous.label,
                       apiKey: previous.apiKey || loadProviderKey(baseUrl),
                     };
                   })
@@ -449,7 +484,10 @@ export default function ProviderSettings({
               </span>
               <input
                 value={draft.model}
-                onChange={(event) => setDraft({ ...draft, model: event.target.value })}
+                onChange={(event) => {
+                  setDraft({ ...draft, model: event.target.value });
+                  setTest(null);
+                }}
                 list={listId}
                 placeholder="model id"
                 spellCheck={false}
@@ -479,7 +517,10 @@ export default function ProviderSettings({
                   <input
                     type={revealed ? "text" : "password"}
                     value={draft.apiKey ?? ""}
-                    onChange={(event) => setDraft({ ...draft, apiKey: event.target.value })}
+                    onChange={(event) => {
+                      setDraft({ ...draft, apiKey: event.target.value });
+                      setTest(null);
+                    }}
                     placeholder={isLocalDraft ? "not needed locally" : "paste your key"}
                     spellCheck={false}
                     autoComplete="off"

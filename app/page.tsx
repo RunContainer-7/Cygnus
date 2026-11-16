@@ -147,8 +147,7 @@ export default function HomePage() {
           <p className="hero-composer-note">
             {demo
               ? "Offline demo is selected. Pick an open model for real builds."
-              : `${provider.model} · ${providerLabel(provider)}`}
-            <span>Enter to build · Shift+Enter for a new line</span>
+              : "Enter to build · Shift+Enter for a new line"}
           </p>
 
           {error ? <p className="hero-error">{error}</p> : null}

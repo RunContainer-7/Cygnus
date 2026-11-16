@@ -494,10 +494,7 @@ export default function Builder({
                 </button>
               )}
             </div>
-            <p className="composer-hint">
-              Enter to send · Shift+Enter for a new line · {provider.model} ·{" "}
-              {isKeylessProvider(provider) ? "no key" : "key saved"}
-            </p>
+            <p className="composer-hint">Enter to send · Shift+Enter for a new line</p>
           </form>
           {!atBottom ? (
             <button
