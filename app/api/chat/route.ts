@@ -5,7 +5,13 @@ import { streamModelTurn, type WireMessage } from "@/lib/llm";
 import { isDemo } from "@/lib/providers";
 import { buildSystemPrompt } from "@/lib/systemPrompt";
 import { runTool, toolDefinitions } from "@/lib/tools";
-import type { ProviderConfig, ToolEvent } from "@/lib/types";
+import type {
+  AgentRun,
+  BlueprintTask,
+  ProviderConfig,
+  ReasoningNode,
+  ToolEvent,
+} from "@/lib/types";
 import {
   appendChat,
   isValidProjectId,
@@ -20,13 +26,90 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-const MAX_STEPS = 10;
+const MAX_STEPS = 24;
 
 type ChatBody = {
   projectId?: string;
   message?: string;
   provider?: ProviderConfig;
 };
+
+function parseToolArguments(raw: string): Record<string, unknown> {
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return parsed as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function agentLabel(value: string): string {
+  if (value === "web_researcher") return "the web researcher";
+  if (value === "expert") return "the expert agent";
+  if (value === "catalyst") return "the catalyst agent";
+  return value;
+}
+
+function narrateToolCall(name: string, rawArguments: string): string {
+  const args = parseToolArguments(rawArguments);
+  if (name === "write_file") {
+    const filePath = typeof args.path === "string" ? args.path : "";
+    return filePath ? `I'll write ${filePath} with write_file.` : "I'll write a file with write_file.";
+  }
+  if (name === "read_file") {
+    const filePath = typeof args.path === "string" ? args.path : "";
+    return filePath ? `I'll read ${filePath} with read_file.` : "I'll read a file with read_file.";
+  }
+  if (name === "list_files") return "I'll check the project files with list_files.";
+  if (name === "search_files") {
+    const query = typeof args.query === "string" ? args.query : "";
+    return query
+      ? `I'll search the project for "${query}" with search_files.`
+      : "I'll search the project with search_files.";
+  }
+  if (name === "fetch_url") {
+    const url = typeof args.url === "string" ? args.url : "";
+    return url ? `I'll read ${url} with fetch_url.` : "I'll read a web page with fetch_url.";
+  }
+  if (name === "delete_file") {
+    const filePath = typeof args.path === "string" ? args.path : "";
+    return filePath ? `I'll remove ${filePath} with delete_file.` : "I'll remove a file with delete_file.";
+  }
+  if (name === "blueprint") return "I'll update the blueprint.";
+  if (name === "test_app") return "I'll test the app with test_app.";
+  if (name === "nested_reasoning") return "I'm going one layer deeper with nested_reasoning.";
+  if (name === "spawn_agents") {
+    const agents = Array.isArray(args.agents) ? args.agents : [];
+    const names = agents
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return "";
+        const type = (entry as { type?: unknown }).type;
+        return typeof type === "string" ? agentLabel(type) : "";
+      })
+      .filter(Boolean);
+    return names.length > 0
+      ? `I'll bring in ${names.join(" and ")} with spawn_agents.`
+      : "I'll bring in a sub-agent with spawn_agents.";
+  }
+  return `I'll use ${name}.`;
+}
+
+function wireTranscript(wire: WireMessage[]): string {
+  return wire
+    .slice(-12)
+    .map((message) => {
+      const content = typeof message.content === "string" ? message.content : "";
+      const calls = (message.tool_calls ?? [])
+        .map((call) => `${call.function.name}(${call.function.arguments.slice(0, 320)})`)
+        .join(", ");
+      return `${message.role.toUpperCase()}: ${content.slice(0, 1_200)}${
+        calls ? ` [called ${calls}]` : ""
+      }`;
+    })
+    .join("\n\n");
+}
 
 export async function POST(request: NextRequest) {
   let body: ChatBody;
@@ -93,7 +176,7 @@ export async function POST(request: NextRequest) {
             tools: result.tools,
           });
           const files = await listFiles(projectId);
-          send({ type: "done", files: files.length, truncated: false });
+          send({ type: "done", files: files.length, truncated: false, rounds: 0 });
           return;
         }
 
@@ -120,7 +203,22 @@ export async function POST(request: NextRequest) {
 
         let assistantText = "";
         const toolsUsed: ToolEvent[] = [];
+        const assistantReasoning: ReasoningNode[] = [];
+        const agentRuns: AgentRun[] = [];
+        const toolState = { nestedDepth: 0 };
+        let blueprint: BlueprintTask[] | undefined;
+        let nativeReasoning: ReasoningNode | null = null;
         let truncated = false;
+
+        const onReasoning = (delta: string) => {
+          if (!nativeReasoning) {
+            nativeReasoning = { depth: 0, text: "", label: "Thinking" };
+            assistantReasoning.push(nativeReasoning);
+          }
+          if (nativeReasoning.text.length >= 24_000) return;
+          nativeReasoning.text += delta;
+          send({ type: "reasoning", depth: 0, text: delta, append: true, label: "Thinking" });
+        };
 
         for (let step = 0; step < MAX_STEPS; step += 1) {
           const turn = await streamModelTurn({
@@ -132,6 +230,7 @@ export async function POST(request: NextRequest) {
               assistantText += delta;
               send({ type: "text", value: delta });
             },
+            onReasoning,
           });
 
           if (turn.toolCalls.length === 0) break;
@@ -147,12 +246,53 @@ export async function POST(request: NextRequest) {
           });
 
           for (const call of turn.toolCalls) {
-            const result = await runTool(projectId, call.name, call.arguments);
+            const narration = narrateToolCall(call.name, call.arguments);
+            if (narration) {
+              const separator = !assistantText
+                ? ""
+                : assistantText.endsWith("\n\n")
+                  ? ""
+                  : assistantText.endsWith("\n")
+                    ? "\n"
+                    : "\n\n";
+              const note = `${separator}${narration}\n\n`;
+              assistantText += note;
+              send({ type: "text", value: note });
+            }
+
+            const result = await runTool(projectId, call.name, call.arguments, {
+              provider: normalizedProvider,
+              origin: request.nextUrl.origin,
+              signal: request.signal,
+              emit: send,
+              transcript: wireTranscript(wire),
+              state: toolState,
+            });
+
+            if (result.reasoning) {
+              assistantReasoning.push(result.reasoning);
+              send({
+                type: "reasoning",
+                depth: result.reasoning.depth,
+                text: result.reasoning.text,
+                label: result.reasoning.label,
+              });
+            }
+            if (result.blueprint) {
+              blueprint = result.blueprint;
+              send({ type: "blueprint", tasks: result.blueprint });
+            }
+            if (result.agents) {
+              agentRuns.push(...result.agents);
+            }
+
             const event: ToolEvent = {
               name: call.name,
               ok: result.ok,
               path: result.path,
               message: result.display,
+              detail: result.detail,
+              kind: result.kind,
             };
             toolsUsed.push(event);
             send({ type: "tool", ...event });
@@ -171,11 +311,15 @@ export async function POST(request: NextRequest) {
           role: "assistant",
           content: assistantText,
           tools: toolsUsed,
+          ...(assistantReasoning.length > 0 ? { reasoning: assistantReasoning } : {}),
+          ...(blueprint ? { blueprint } : {}),
+          ...(agentRuns.length > 0 ? { agents: agentRuns } : {}),
         });
         send({
           type: "done",
           files: finalFiles.length,
           truncated,
+          rounds: MAX_STEPS,
           project: meta.name,
         });
       } catch (error) {

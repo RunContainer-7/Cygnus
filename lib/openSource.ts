@@ -163,7 +163,7 @@ export const OPEN_SOURCE_ENGINE_MODELS: OpenSourceModel[] = [
     tag: "solar:10.7b",
     size: "6.1 GB",
     minRamGb: 8,
-    note: "Upstage's small open-weight model. Chat only: 4K context, no tools.",
+    note: "Upstage's 2023 10.7B checkpoint. Chat only: 4K context, no native tool calling. Solar Pro 3/4 (hosted API) do support tools.",
     tier: "low",
     badge: "Chat only",
     tools: false,

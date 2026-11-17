@@ -295,6 +295,233 @@
   font-size: 11px;
 }
 
+.tool-chip .tool-name {
+  flex: none;
+  overflow: visible;
+  color: #7f8ba8;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  text-overflow: clip;
+}
+
+.blueprint-card {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.blueprint-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--dim);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.blueprint-head em {
+  color: #9fd6a8;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.blueprint-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 9px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.blueprint-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.blueprint-item.active {
+  color: var(--text);
+}
+
+.blueprint-item.done {
+  color: var(--dim);
+}
+
+.blueprint-item.done > span:last-child {
+  text-decoration: line-through;
+}
+
+.blueprint-mark {
+  width: 14px;
+  flex: none;
+  color: var(--dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: center;
+}
+
+.blueprint-item.active .blueprint-mark {
+  color: var(--accent);
+}
+
+.blueprint-item.done .blueprint-mark {
+  color: #9fd6a8;
+}
+
+.reasoning-block {
+  padding-left: 10px;
+  border-left: 1px solid var(--line-strong);
+}
+
+.reasoning-block summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dim);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  list-style: none;
+}
+
+.reasoning-block summary::-webkit-details-marker {
+  display: none;
+}
+
+.reasoning-block summary::marker {
+  content: "";
+}
+
+.reasoning-block summary em {
+  color: #7f8ba8;
+  font-style: normal;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.reasoning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.reasoning-node {
+  padding-left: 9px;
+  border-left: 1px solid rgba(147, 180, 255, 0.16);
+}
+
+.reasoning-depth {
+  display: block;
+  color: #6f7c9c;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.reasoning-node p {
+  margin: 3px 0 0;
+  color: #9aa3bf;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.agent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.agent-row {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.agent-row summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11.5px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.agent-row summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-row summary::marker {
+  content: "";
+}
+
+.agent-row summary strong {
+  flex: none;
+  color: #c6cff0;
+  font-weight: 600;
+}
+
+.agent-row summary em {
+  flex: none;
+  color: var(--dim);
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.agent-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.agent-row.running .agent-dot {
+  background: var(--accent);
+  animation: blink 1.2s infinite ease-in-out;
+}
+
+.agent-row.done .agent-dot {
+  background: #9fd6a8;
+}
+
+.agent-row.error .agent-dot {
+  background: #ffb08f;
+}
+
+.agent-task {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-summary {
+  margin: 8px 0 0;
+  color: #9aa3bf;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
 .msg-actions {
   display: flex;
   gap: 4px;

@@ -7,7 +7,14 @@ import ModelMenu from "@/components/ModelMenu";
 import { useProvider } from "@/components/ProviderContext";
 import { endpointHost, isLocalEndpoint } from "@/lib/endpoints";
 import { isDemo, isHosted, isKeylessProvider, providerLabel } from "@/lib/providers";
-import type { ChatMessage, ProjectData, ToolEvent } from "@/lib/types";
+import type {
+  AgentRun,
+  BlueprintTask,
+  ChatMessage,
+  ProjectData,
+  ReasoningNode,
+  ToolEvent,
+} from "@/lib/types";
 
 type PanelId =
   | "preview"
@@ -46,6 +53,19 @@ function updateLast(
     }
   }
   return copy;
+}
+
+const AGENT_LABELS: Record<AgentRun["agent"], string> = {
+  web_researcher: "Web researcher",
+  expert: "Expert",
+  catalyst: "Catalyst",
+};
+
+function lastReasoningIndex(nodes: ReasoningNode[], depth: number): number {
+  for (let index = nodes.length - 1; index >= 0; index -= 1) {
+    if (nodes[index].depth === depth) return index;
+  }
+  return -1;
 }
 
 export default function Builder({
@@ -150,12 +170,74 @@ export default function Builder({
             ok: Boolean(event.ok),
             path: typeof event.path === "string" ? event.path : undefined,
             message: String(event.message ?? "Done"),
+            detail: typeof event.detail === "string" ? event.detail : undefined,
+            kind:
+              typeof event.kind === "string" ? (event.kind as ToolEvent["kind"]) : undefined,
           };
           setMessages((previous) =>
             updateLast(previous, (message) => ({
               ...message,
               tools: [...(message.tools ?? []), tool],
             })),
+          );
+          return;
+        }
+        if (event.type === "reasoning") {
+          const depth = typeof event.depth === "number" ? event.depth : 0;
+          const text = String(event.text ?? "");
+          if (!text) return;
+          const append = Boolean(event.append);
+          const label = typeof event.label === "string" ? event.label : undefined;
+          setMessages((previous) =>
+            updateLast(previous, (message) => {
+              const nodes = [...(message.reasoning ?? [])];
+              if (append) {
+                const index = lastReasoningIndex(nodes, depth);
+                if (index >= 0) {
+                  nodes[index] = { ...nodes[index], text: nodes[index].text + text };
+                } else {
+                  nodes.push({
+                    depth,
+                    text,
+                    label: label ?? (depth === 0 ? "Thinking" : `Layer ${depth}`),
+                  });
+                }
+              } else {
+                nodes.push({
+                  depth,
+                  text,
+                  label: label ?? (depth === 0 ? "Thinking" : `Layer ${depth}`),
+                });
+              }
+              return { ...message, reasoning: nodes };
+            }),
+          );
+          return;
+        }
+        if (event.type === "blueprint" && Array.isArray(event.tasks)) {
+          const tasks = event.tasks as BlueprintTask[];
+          setMessages((previous) =>
+            updateLast(previous, (message) => ({ ...message, blueprint: tasks })),
+          );
+          return;
+        }
+        if (event.type === "agent") {
+          const run: AgentRun = {
+            id: String(event.id ?? `${String(event.agent)}-${String(event.task)}`),
+            agent: String(event.agent ?? "expert") as AgentRun["agent"],
+            task: String(event.task ?? ""),
+            status:
+              event.status === "done" || event.status === "error" ? event.status : "running",
+            summary: typeof event.summary === "string" ? event.summary : undefined,
+          };
+          setMessages((previous) =>
+            updateLast(previous, (message) => {
+              const runs = [...(message.agents ?? [])];
+              const index = runs.findIndex((entry) => entry.id === run.id);
+              if (index >= 0) runs[index] = { ...runs[index], ...run };
+              else runs.push(run);
+              return { ...message, agents: runs };
+            }),
           );
           return;
         }
@@ -168,12 +250,13 @@ export default function Builder({
         }
         if (event.type === "done") {
           if (event.truncated) {
+            const rounds = typeof event.rounds === "number" ? event.rounds : 10;
             setMessages((previous) =>
               updateLast(previous, (message) => ({
                 ...message,
                 content:
                   (message.content ? `${message.content}\n\n` : "") +
-                  "Stopped after 10 tool rounds — ask me to continue.",
+                  `Stopped after ${rounds} tool rounds — ask me to continue.`,
               })),
             );
           }
@@ -372,6 +455,12 @@ export default function Builder({
                 </div>
               ) : (
                 <div className="msg assistant" key={`assistant-${index}`}>
+                  {message.blueprint && message.blueprint.length > 0 ? (
+                    <BlueprintCard tasks={message.blueprint} />
+                  ) : null}
+                  {message.reasoning && message.reasoning.length > 0 ? (
+                    <ReasoningBlock nodes={message.reasoning} />
+                  ) : null}
                   {message.content ? (
                     <div className="bubble assistant-bubble">{message.content}</div>
                   ) : null}
@@ -386,6 +475,9 @@ export default function Builder({
                       </button>
                     </div>
                   ) : null}
+                  {message.agents && message.agents.length > 0 ? (
+                    <AgentRuns runs={message.agents} />
+                  ) : null}
                   {message.tools && message.tools.length > 0 ? (
                     <div className="tool-list">
                       {message.tools.map((tool, toolIndex) => (
@@ -394,7 +486,7 @@ export default function Builder({
                           className={`tool-chip ${tool.ok ? "ok" : "warn"}`}
                           key={`${tool.name}-${toolIndex}`}
                           disabled={!tool.path}
-                          title={tool.path ? `Open ${tool.path}` : tool.message}
+                          title={tool.detail ?? (tool.path ? `Open ${tool.path}` : tool.message)}
                           onClick={() => {
                             if (!tool.path) return;
                             setDrawerFile(tool.path);
@@ -402,6 +494,7 @@ export default function Builder({
                           }}
                         >
                           <span aria-hidden="true">{tool.ok ? "✓" : "!"}</span>
+                          <span className="tool-name">{tool.name}</span>
                           <span>{tool.message}</span>
                           {tool.path ? <code>{tool.path}</code> : null}
                         </button>
@@ -801,6 +894,75 @@ export default function Builder({
           setDrawerFile(null);
         }}
       />
+    </div>
+  );
+}
+
+function BlueprintCard({ tasks }: { tasks: BlueprintTask[] }) {
+  const done = tasks.filter((task) => task.status === "done").length;
+  return (
+    <div className="blueprint-card">
+      <div className="blueprint-head">
+        <span>Blueprint</span>
+        <em>
+          {done}/{tasks.length} done
+        </em>
+      </div>
+      <ul className="blueprint-list">
+        {tasks.map((task) => (
+          <li className={`blueprint-item ${task.status}`} key={task.id}>
+            <span className="blueprint-mark" aria-hidden="true">
+              {task.status === "done" ? "✓" : task.status === "active" ? "▸" : "○"}
+            </span>
+            <span>{task.title}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ReasoningBlock({ nodes }: { nodes: ReasoningNode[] }) {
+  return (
+    <details className="reasoning-block">
+      <summary>
+        <span>Reasoning</span>
+        <em>
+          {nodes.length} layer{nodes.length === 1 ? "" : "s"}
+        </em>
+      </summary>
+      <div className="reasoning-list">
+        {nodes.map((node, index) => (
+          <div
+            className="reasoning-node"
+            key={`${node.depth}-${index}`}
+            style={{ marginLeft: Math.min(node.depth, 8) * 12 }}
+          >
+            <span className="reasoning-depth">
+              {node.label ?? (node.depth === 0 ? "Thinking" : `Layer ${node.depth}`)}
+            </span>
+            <p>{node.text}</p>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function AgentRuns({ runs }: { runs: AgentRun[] }) {
+  return (
+    <div className="agent-list">
+      {runs.map((run) => (
+        <details className={`agent-row ${run.status}`} key={run.id}>
+          <summary>
+            <span className="agent-dot" aria-hidden="true" />
+            <strong>{AGENT_LABELS[run.agent] ?? run.agent}</strong>
+            <span className="agent-task">{run.task}</span>
+            <em>{run.status}</em>
+          </summary>
+          {run.summary ? <p className="agent-summary">{run.summary}</p> : null}
+        </details>
+      ))}
     </div>
   );
 }

@@ -29,6 +29,22 @@ type StreamResult = {
   toolCalls: ParsedToolCall[];
 };
 
+function reasoningDelta(delta: {
+  reasoning?: unknown;
+  reasoning_content?: unknown;
+}): string {
+  if (typeof delta.reasoning === "string") return delta.reasoning;
+  if (typeof delta.reasoning_content === "string") return delta.reasoning_content;
+  if (
+    delta.reasoning &&
+    typeof delta.reasoning === "object" &&
+    typeof (delta.reasoning as { text?: unknown }).text === "string"
+  ) {
+    return (delta.reasoning as { text: string }).text;
+  }
+  return "";
+}
+
 function chatEndpoint(baseUrl: string): string {
   const normalized = normalizeBaseUrl(baseUrl);
   if (!normalized) throw new Error("Add a provider endpoint in Settings first.");
@@ -42,6 +58,9 @@ function friendlyError(status: number, body: string): string {
   }
   if (status === 404) {
     return `The provider or model was not found (HTTP 404). Check the base URL and model name. ${detail}`;
+  }
+  if (status === 400 && /tool|function/i.test(detail)) {
+    return `This model rejected tool calling (HTTP 400). Choose a tool-capable model, or switch to Local/BYOK with a model that supports tools. ${detail}`;
   }
   if (status === 429) {
     return `The provider is rate limiting this model (HTTP 429). Wait a moment or choose another model. ${detail}`;
@@ -73,8 +92,9 @@ async function openCompletion(options: {
   tools: unknown[];
   apiKey?: string;
   signal?: AbortSignal;
+  maxTokens?: number;
 }): Promise<Response> {
-  const { target, messages, tools, apiKey, signal } = options;
+  const { target, messages, tools, apiKey, signal, maxTokens } = options;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "text/event-stream",
@@ -86,18 +106,25 @@ async function openCompletion(options: {
   const timeout = AbortSignal.timeout(240_000);
   const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
 
+  const payload: Record<string, unknown> = {
+    model: target.model,
+    messages,
+    stream: true,
+    temperature: 0.3,
+  };
+  if (tools.length > 0) {
+    payload.tools = tools;
+    payload.tool_choice = "auto";
+  }
+  if (maxTokens && maxTokens > 0) {
+    payload.max_tokens = maxTokens;
+  }
+
   const response = await fetch(chatEndpoint(target.baseUrl), {
     method: "POST",
     headers,
     signal: combined,
-    body: JSON.stringify({
-      model: target.model,
-      messages,
-      tools,
-      tool_choice: "auto",
-      stream: true,
-      temperature: 0.3,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -122,6 +149,7 @@ async function openCompletion(options: {
 async function parseStream(
   response: Response,
   onText?: (delta: string) => void,
+  onReasoning?: (delta: string) => void,
 ): Promise<StreamResult> {
   if (!response.body) {
     throw new Error("The provider returned an empty response.");
@@ -162,6 +190,8 @@ async function parseStream(
       choices?: Array<{
         delta?: {
           content?: string | null;
+          reasoning?: unknown;
+          reasoning_content?: unknown;
           tool_calls?: Array<{
             index?: number;
             id?: string;
@@ -171,6 +201,9 @@ async function parseStream(
       }>;
     })?.choices?.[0]?.delta;
     if (!delta) return;
+
+    const thinking = reasoningDelta(delta);
+    if (thinking) onReasoning?.(thinking);
 
     if (typeof delta.content === "string" && delta.content.length > 0) {
       content += delta.content;
@@ -222,8 +255,10 @@ export async function streamModelTurn(options: {
   tools: unknown[];
   signal?: AbortSignal;
   onText?: (delta: string) => void;
+  onReasoning?: (delta: string) => void;
+  maxTokens?: number;
 }): Promise<StreamResult> {
-  const { provider, messages, tools, signal, onText } = options;
+  const { provider, messages, tools, signal, onText, onReasoning, maxTokens } = options;
   const targets = requestTargets(provider);
   const hosted = provider.baseUrl === HOSTED_BASE_URL;
 
@@ -242,6 +277,7 @@ export async function streamModelTurn(options: {
         tools,
         apiKey: hosted ? "" : provider.apiKey,
         signal,
+        maxTokens,
       });
       break;
     } catch (error) {
@@ -261,5 +297,5 @@ export async function streamModelTurn(options: {
     );
   }
 
-  return parseStream(response, onText);
+  return parseStream(response, onText, onReasoning);
 }

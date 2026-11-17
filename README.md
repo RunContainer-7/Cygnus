@@ -36,8 +36,8 @@ npm run dist
 
 That produces the installers plus update metadata in `release/`:
 
-- `Cygnus-Setup-0.1.3.exe` — a normal setup wizard with Start menu and desktop shortcuts.
-- `Cygnus-Portable-0.1.3.exe` — runs without installing anything.
+- `Cygnus-Setup-0.1.4.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.1.4.exe` — runs without installing anything.
 - `latest.yml` — the update feed consumed by installed copies.
 
 Rebuild the installer after changes to package a new version.
@@ -50,7 +50,7 @@ Cygnus has three lanes in the composer picker:
 
 | Lane | Key | What it is |
 | --- | --- | --- |
-| **Open source** | None | Fourteen open-weight families run on this PC's CPU/GPU, plus three free cloud models. On-device code and prompts stay local. |
+| **Open source** | None | Fourteen open-weight families run on this PC's CPU/GPU, plus seven free cloud models. On-device code and prompts stay local. |
 | **Local** | None | Connect Ollama or LM Studio only. Uses the model already loaded there. Private, offline-capable. |
 | **BYOK** | Your key | Paste one key; Cygnus detects the provider and picks a coding model. No model list to maintain. |
 
@@ -62,9 +62,30 @@ Hosted models run through [Kilo AI Gateway](https://ai-gateway.kilo.ai)'s anonym
 | --- | --- | --- |
 | LFM 3 1.7B | Low | Tiny and quick for small edits. |
 | Nemotron 3.5 Lightning | Balanced | 30B agent; the default for multi-file builds. |
+| North Mini Code | Balanced | Cohere's Apache-2.0 30B coding agent. Fast single-file edits. |
+| Nemotron 3 Nano Omni 30B | Balanced | 30B open-weight reasoning model with a 256K context. |
 | Nemotron 3 Ultra 550B | Max | Slower 550B reasoning model for long builds. |
+| Nemotron 3.5 Super VL | Max | Multimodal 1M-context NVIDIA agent; slower. |
+| ERNIE 5.5 Flash 280B | Max | 280B MoE with a 1M context; preview capacity. |
 
 Hosted prompts may be logged by the upstream provider. Use **Open source → On this PC** for private code.
+
+Claude and Grok are not in the no-key lane: the gateway requires a signed-in key for those routes. Claude works through **BYOK**; Grok works through **Custom endpoint** with an xAI key.
+
+### Agent tools
+
+Every model, local or cloud, gets the same tool set. The agent prints a one-line narration before each call, shows the tool result, and keeps iterating (up to 24 rounds per message).
+
+| Tool | What it does |
+| --- | --- |
+| `write_file`, `read_file`, `list_files`, `search_files`, `delete_file` | Inspect and edit the project. `search_files` finds text with line numbers. |
+| `blueprint` | Creates or updates the visible task list, with one active task and ticked-off completed tasks. |
+| `spawn_agents` | Brings in `web_researcher` (searches the web and reads pages), `expert` (diagnoses a stuck or looping agent), or `catalyst` (returns a fast, code-ready plan). |
+| `nested_reasoning` | Adds a visible layer of reasoning inside reasoning. There is no fixed nesting limit in the transcript; each call is one tool round. |
+| `test_app` | Checks index.html, local asset references, JS syntax, CSS blocks, placeholders, and the preview route. |
+| `fetch_url` | Reads a specific public documentation page. Private and local addresses are blocked. |
+
+Web research sends the query to DuckDuckGo and reads the top public pages. Tool calls are shown as chips in the chat and in the Console panel.
 
 ### On-device open source · no key, no request limit
 
@@ -87,7 +108,7 @@ Pick one of these in **Open source → On this PC**. Cygnus installs a standalon
 | olmOCR | olmOCR 2 7B | `hf.co/lmstudio-community/olmOCR-2-7B-1025-GGUF:Q4_K_M` | 5.7 GB | 8 GB |
 | Granite | Granite 4 Micro | `granite4:micro` | 2.1 GB | 4 GB |
 
-Agent models are tool-capable. Solar is chat-only (4K context, no tools) and olmOCR is OCR-only, so both are listed but disabled for app builds. Models that exceed the machine's RAM are also disabled. Llama is open-weight under Meta's community license, not OSI-approved; Solar's instruct weights are non-commercial; Muse Spark uses the Muse Model License; the rest are Apache-2.0 or MIT. The engine and model store live in the app's user-data folder; delete a model to reclaim the disk space.
+Agent models are tool-capable. Solar 10.7B is the 2023 open-weight checkpoint: chat-only, 4K context, and no native tool calling. Upstage's tool-capable Solar Pro 3/4 are hosted API models, not this checkpoint. olmOCR is OCR-only, so both are listed but disabled for app builds. Models that exceed the machine's RAM are also disabled. Llama is open-weight under Meta's community license, not OSI-approved; Solar's instruct weights are non-commercial; Muse Spark uses the Muse Model License; the rest are Apache-2.0 or MIT. The engine and model store live in the app's user-data folder; delete a model to reclaim the disk space.
 
 ### BYOK and local endpoints
 
@@ -142,7 +163,9 @@ app/api/preview/[id]/...     serves the generated project to the iframe
 lib/endpoints.ts             pasted-endpoint normalization + local host detection
 app/api/models/route.ts      model discovery from any endpoint
 lib/llm.ts                   OpenAI-compatible streaming + tool-call assembly
-lib/tools.ts                 write_file, read_file, list_files, delete_file
+lib/tools.ts                 agent tools + dispatch (files, web, blueprint, sub-agents, test)
+lib/subagents.ts             web researcher, expert, and catalyst sub-agents
+lib/appTest.ts               static app checks + preview route smoke test
 lib/workspace.ts             per-project folder, path containment, chat persistence
 lib/localEngine.ts           managed Ollama install, model pulls, engine status
 app/api/opensource/route.ts  on-device status + NDJSON download progress
@@ -158,7 +181,7 @@ Each project is a normal folder. Open it in any editor, or delete it to start ov
 
 - Generated apps are static: HTML, CSS and vanilla JavaScript. No npm install, frameworks or build step yet.
 - The preview iframe is same-origin with `allow-scripts`, so generated code can reach the app's own APIs. Do not run untrusted prompts against a server holding real secrets; the next step for hosting is one sandbox (container or microVM) per project.
-- The agent loop is capped at 10 tool rounds per message.
+- The agent loop is capped at 24 tool rounds per message.
 - Hosted models use shared free capacity (about 200 requests/hour per IP) and may be rate-limited or busy. They may log prompts upstream; Local keeps prompts on your machine.
 - Provider tool-calling quality varies. Local 7B models work for small edits; long multi-file sessions need a stronger model.
 
