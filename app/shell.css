@@ -2657,6 +2657,10 @@ body {
 }
 
 .mp-row:disabled {
+  cursor: default;
+}
+
+.mp-row[aria-busy="true"] {
   cursor: wait;
 }
 
@@ -2847,6 +2851,226 @@ body {
   color: #f0f1eb;
 }
 
+.mp-progress {
+  display: block;
+  height: 3px;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #242824;
+}
+
+.mp-progress > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #b6d6b9;
+  transition: width 180ms ease;
+}
+
+.mp-progress.indeterminate > span {
+  width: 38%;
+  animation: mp-progress-slide 1.2s ease-in-out infinite;
+}
+
+.mp-task-pct {
+  color: #aac8ae;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.mp-ready {
+  padding: 2px 5px;
+  border: 1px solid rgba(166, 204, 174, 0.14);
+  border-radius: 4px;
+  background: #1b241d;
+  color: #a9c5af;
+  font-size: 7px;
+  white-space: nowrap;
+}
+
+.mp-key-hint.warn {
+  border-color: rgba(217, 179, 166, 0.16);
+  color: #b99b90;
+}
+
+.mp-engine-note {
+  margin: 7px 10px 4px;
+  color: #61675f;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.mp-byok {
+  margin: 12px 10px 10px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  background: #0c0f0d;
+}
+
+.mp-byok-lead {
+  margin: 0 0 12px;
+  color: #aeb6a9;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.mp-byok-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mp-byok-field > span {
+  color: #737b71;
+  font-size: 8px;
+  font-weight: 550;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.mp-byok-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  background: #080a09;
+}
+
+.mp-byok-input:focus-within {
+  border-color: rgba(184, 221, 190, 0.3);
+}
+
+.mp-byok-input input {
+  min-width: 0;
+  height: 36px;
+  flex: 1;
+  padding: 0 10px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #e3e6dd;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.mp-byok-input input::placeholder {
+  color: #555c54;
+}
+
+.mp-byok-input button {
+  flex: none;
+  padding: 0 10px;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+  background: transparent;
+  color: #8d968a;
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.mp-byok-input button:hover {
+  color: #e6e8e1;
+}
+
+.mp-byok-submit {
+  width: 100%;
+  height: 36px;
+  margin-top: 10px;
+  border: 1px solid rgba(184, 221, 190, 0.24);
+  border-radius: 7px;
+  background: #d9e4d5;
+  color: #0b0d0b;
+  font-size: 10px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.mp-byok-submit:hover:not(:disabled) {
+  background: #e6eee2;
+}
+
+.mp-byok-submit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.mp-byok .mp-error {
+  margin: 9px 0 0;
+}
+
+.mp-byok-result {
+  margin-top: 12px;
+  padding: 11px;
+  border: 1px solid rgba(166, 204, 174, 0.16);
+  border-radius: 8px;
+  background: #111812;
+}
+
+.mp-byok-result-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #dfe5d9;
+  font-size: 10px;
+}
+
+.mp-byok-result-head strong {
+  font-weight: 600;
+}
+
+.mp-byok-result code {
+  display: block;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+  color: #d7c99c;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.mp-byok-result p {
+  margin: 6px 0 0;
+  color: #7e877b;
+  font-size: 8.5px;
+  line-height: 1.45;
+}
+
+.mp-byok-done {
+  margin-top: 9px;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 5px;
+  background: transparent;
+  color: #b8c2b4;
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.mp-byok-done:hover {
+  border-color: rgba(255, 255, 255, 0.17);
+  color: #eef0e9;
+}
+
+.mp-byok-note {
+  margin: 12px 0 0;
+  color: #646c62;
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+@keyframes mp-progress-slide {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(330%);
+  }
+}
+
 /* ---------- motion ---------- */
 
 @keyframes shell-rise {
@@ -2878,6 +3102,12 @@ body {
   .settings-page .settings-frame,
   .model-picker {
     animation: none;
+  }
+
+  .mp-progress.indeterminate > span {
+    animation: none;
+    width: 100%;
+    opacity: 0.45;
   }
 
   .home-v2,

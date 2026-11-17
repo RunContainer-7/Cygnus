@@ -14,8 +14,8 @@ export default function SettingsPage() {
           <span className="page-eyebrow">Settings</span>
           <h1>Models &amp; connections.</h1>
           <p>
-            Pick a hosted open model, run a local server, or bring your own key. Keys stay in
-            this browser.
+            Pick an on-device open model in the composer, connect Ollama or LM Studio, or bring
+            your own key. Keys stay in this browser.
           </p>
         </header>
 

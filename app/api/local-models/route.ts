@@ -39,27 +39,6 @@ const CANDIDATES: Candidate[] = [
     ping: "/v1/models",
     list: "/v1/models",
   },
-  {
-    id: "vllm",
-    label: "vLLM",
-    baseUrl: "http://127.0.0.1:8000",
-    ping: "/health",
-    list: "/v1/models",
-  },
-  {
-    id: "llamacpp",
-    label: "llama.cpp",
-    baseUrl: "http://127.0.0.1:9931",
-    ping: "/health",
-    list: "/v1/models",
-  },
-  {
-    id: "llamacpp",
-    label: "llama.cpp",
-    baseUrl: "http://127.0.0.1:8080",
-    ping: "/health",
-    list: "/v1/models",
-  },
 ];
 
 async function probe(candidate: Candidate): Promise<ServerResult | null> {

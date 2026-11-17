@@ -15,11 +15,11 @@ Open http://localhost:3000. It starts on **Nemotron 3.5 Lightning**, a hosted op
 
 ## Download for Windows
 
-The latest published installer release is **[v0.1.2](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.2)**.
+The latest published installer release is **[v0.1.3](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.3)**.
 
-- [Cygnus-Setup-0.1.2.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.2/Cygnus-Setup-0.1.2.exe) — installer with Start Menu and desktop shortcuts.
-- [Cygnus-Portable-0.1.2.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.2/Cygnus-Portable-0.1.2.exe) — portable build that runs without installing.
-- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.2/SHA256SUMS.txt) — checksums for both downloads.
+- [Cygnus-Setup-0.1.3.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.3/Cygnus-Setup-0.1.3.exe) — installer with Start Menu and desktop shortcuts.
+- [Cygnus-Portable-0.1.3.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.3/Cygnus-Portable-0.1.3.exe) — portable build that runs without installing.
+- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.3/SHA256SUMS.txt) — checksums for both downloads.
 
 Installed v0.1.1 and later copies check GitHub Releases on launch and show an in-app update button; updates download and restart in place. Portable builds show a download link instead. The earlier v0.1.0 installers do not include the updater, so updating from v0.1.0 requires this one manual install.
 
@@ -36,25 +36,25 @@ npm run dist
 
 That produces the installers plus update metadata in `release/`:
 
-- `Cygnus-Setup-0.1.2.exe` — a normal setup wizard with Start menu and desktop shortcuts.
-- `Cygnus-Portable-0.1.2.exe` — runs without installing anything.
+- `Cygnus-Setup-0.1.3.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.1.3.exe` — runs without installing anything.
 - `latest.yml` — the update feed consumed by installed copies.
 
 Rebuild the installer after changes to package a new version.
 
-No API key is required to try it. New installs start on the hosted **Nemotron 3.5 Lightning** model; the **Offline demo** is still available in Settings and writes a sample project without any model call. Open **Settings** to choose hosted, local, or BYOK models.
+No API key is required to try it. New installs start on the free **Nemotron 3.5 Lightning** model; the **Offline demo** is still available in Settings and writes a sample project without any model call. Choose free cloud or on-device open-source models from the composer picker, and open **Settings** for Ollama, LM Studio, or BYOK connections.
 
 ## Models
 
-Cygnus has three separate access lanes, shown in the model picker and Settings:
+Cygnus has three lanes in the composer picker:
 
 | Lane | Key | What it is |
 | --- | --- | --- |
-| **Hosted** | None | Free open-weight models on shared public capacity. No account, no key. Prompts may be logged upstream. |
-| **Local** | None | Ollama, LM Studio, vLLM, llama.cpp, LocalAI or Respan on your machine. Private, offline-capable. |
-| **BYOK** | Your key | OpenAI, Anthropic, Gemini, Groq, OpenRouter, DeepSeek, Together, Cerebras and custom endpoints. |
+| **Open source** | None | Fourteen open-weight families run on this PC's CPU/GPU, plus three free cloud models. On-device code and prompts stay local. |
+| **Local** | None | Connect Ollama or LM Studio only. Uses the model already loaded there. Private, offline-capable. |
+| **BYOK** | Your key | Paste one key; Cygnus detects the provider and picks a coding model. No model list to maintain. |
 
-### Hosted · free, no key
+### Free cloud · no key
 
 Hosted models run through [Kilo AI Gateway](https://ai-gateway.kilo.ai)'s anonymous free tier (about 200 requests/hour per IP). They are open-weight models, but the capacity is shared: if a model is busy, choose another hosted model, wait, or switch to Local/BYOK.
 
@@ -64,27 +64,51 @@ Hosted models run through [Kilo AI Gateway](https://ai-gateway.kilo.ai)'s anonym
 | Nemotron 3.5 Lightning | Balanced | 30B agent; the default for multi-file builds. |
 | Nemotron 3 Ultra 550B | Max | Slower 550B reasoning model for long builds. |
 
-Hosted prompts may be logged by the upstream provider. Use **Local** for private code.
+Hosted prompts may be logged by the upstream provider. Use **Open source → On this PC** for private code.
+
+### On-device open source · no key, no request limit
+
+Pick one of these in **Open source → On this PC**. Cygnus installs a standalone Ollama runtime on first use (about 1.5 GB), then downloads the model. Everything runs on the local CPU/GPU; prompts and code never leave the machine. Speed depends on the hardware, and models that exceed the machine's RAM are disabled in the picker.
+
+| Family | Model | Tag | Download | Minimum RAM |
+| --- | --- | --- | --- | --- |
+| Qwen | Qwen3 4B | `qwen3:4b` | 2.5 GB | 6 GB |
+| DeepSeek | DeepSeek R1 7B | `deepseek-r1:7b` | 4.7 GB | 7 GB |
+| GLM | GLM 4.7 Flash | `glm-4.7-flash:q4_K_M` | 19 GB | 24 GB |
+| MiMo | MiMo 2.6 9B | `mimo-v2.6:9b` | 6.6 GB | 10 GB |
+| MiniMax | MiniMax M2.5 | `hf.co/unsloth/MiniMax-M2.5-GGUF:UD-Q4_K_XL` | 131 GB | 160 GB |
+| Gemma | Gemma 4 E2B | `gemma4:e2b` | 4.6 GB | 6 GB |
+| Phi | Phi-4 mini | `phi4-mini:3.8b` | 2.5 GB | 4 GB |
+| Llama | Llama 3.1 8B | `llama3.1:8b` | 4.9 GB | 7 GB |
+| OpenAI | GPT-OSS 20B | `gpt-oss:20b` | 14 GB | 16 GB |
+| Kimi | Kimi Linear 48B | `hf.co/DhruvalLabs/Kimi-Linear-48B-A3B-Instruct-GGUF:Q4_K_M` | 27.7 GB | 32 GB |
+| Solar | Solar 10.7B | `solar:10.7b` | 6.1 GB | 8 GB |
+| Muse | Muse Spark Open | `hf.co/ggml-org/Muse-Spark-Open-816B-A42B-GGUF:Q2_K` | 304 GB | 384 GB |
+| olmOCR | olmOCR 2 7B | `hf.co/lmstudio-community/olmOCR-2-7B-1025-GGUF:Q4_K_M` | 5.7 GB | 8 GB |
+| Granite | Granite 4 Micro | `granite4:micro` | 2.1 GB | 4 GB |
+
+Agent models are tool-capable. Solar is chat-only (4K context, no tools) and olmOCR is OCR-only, so both are listed but disabled for app builds. Models that exceed the machine's RAM are also disabled. Llama is open-weight under Meta's community license, not OSI-approved; Solar's instruct weights are non-commercial; Muse Spark uses the Muse Model License; the rest are Apache-2.0 or MIT. The engine and model store live in the app's user-data folder; delete a model to reclaim the disk space.
 
 ### BYOK and local endpoints
 
-Cygnus talks to any OpenAI-compatible chat completions endpoint with tool calling. Presets cover:
+BYOK is one box in the composer picker: paste a key, and Cygnus calls the provider's `/models` route, identifies the provider, and selects a strong coding model. There is no preset model list to keep in sync.
 
-| Provider | Base URL | Default model |
+| Key prefix | Provider | Example default |
 | --- | --- | --- |
-| OpenAI | `https://api.openai.com/v1` | `gpt-4.1-mini` |
-| Anthropic | `https://api.anthropic.com/v1` | `claude-sonnet-4-5` |
-| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-2.5-flash` |
-| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
-| OpenRouter | `https://openrouter.ai/api/v1` | `anthropic/claude-sonnet-4.5` |
-| DeepSeek | `https://api.deepseek.com` | `deepseek-flash` |
-| Together AI | `https://api.together.ai/v1` | `Qwen/Qwen3-Coder-480B-A35B-Instruct` |
-| Cerebras | `https://api.cerebras.ai/v1` | `qwen-3.8-27b` |
-| Respan Gateway | `http://127.0.0.1:8787/v1` | `cygnus-agent` |
-| Ollama | `http://localhost:11434/v1` | `qwen2.5-coder:7b` |
+| `sk-ant-` | Anthropic | `claude-sonnet-4-5` |
+| `sk-or-` | OpenRouter | `anthropic/claude-sonnet-4.5` |
+| `gsk_` | Groq | `llama-3.3-70b-versatile` |
+| `csk-` | Cerebras | `qwen-3.8-27b` |
+| `AIza` | Google Gemini | `gemini-2.5-flash` |
+| `sk-proj-` / `sk-` | OpenAI, DeepSeek, or Together | the provider's preferred model |
+| 40+ hex characters | Together AI | `Qwen/Qwen3-Coder-480B-A35B-Instruct` |
+
+Keys live in this browser's `localStorage` and are sent only to the detected provider. **Custom endpoint** accepts any OpenAI-compatible URL with tool calling.
+
+| Local runtime | Base URL | Default model |
+| --- | --- | --- |
+| Ollama | `http://localhost:11434/v1` | `qwen3:4b` |
 | LM Studio | `http://localhost:1234/v1` | the loaded model |
-| vLLM | `http://localhost:8000/v1` | the served model |
-| llama.cpp / LocalAI | `http://localhost:8080/v1` | the served model |
 
 ### Your own model or endpoint
 
@@ -99,35 +123,13 @@ Pick **Custom endpoint**, then paste anything into the fields:
 Local setup quick reference:
 
 ```bash
-ollama pull qwen2.5-coder:7b && ollama serve     # http://localhost:11434/v1
-vllm serve Qwen/Qwen3-Coder-30B-A3B-Instruct      # http://localhost:8000/v1
-llama-server -m model.gguf --port 8080 --api      # http://localhost:8080/v1
+ollama pull qwen3:4b && ollama serve              # http://localhost:11434/v1
 ```
 
 LM Studio: load a model, then start the Local Server on port 1234.
 
 Keys live in the browser's `localStorage` and are sent per request through the local server to the provider. They are never written to the project or to disk.
 
-### Routing through Respan Gateway
-
-[Respan Gateway](https://github.com/respanai/respan-gateway?utm_source=freebuff&utm_medium=paid&utm_campaign=respan-gateway&bfcid=bfc_1.eyJpZCI6IjE2MmI5NTZlLTk3ZTUtNDhjOC04MDQ2LTQ0MjEyMDU4ZjAwZCIsImMiOiIyMDM2ODZkZS1mMzg0LTQ4NTQtYmViNC1hYzBiYWRmNmM1NTUiLCJrIjoiM2IxMGE4YmUtNzgyOS00MmJhLWFmNmEtYmI0YWUxZTRhY2Y4IiwiaWF0IjoxNzk0MzQ0MDcwfQ.aY1SvvwKPPL5DlIkHmoQb8pGmpm5shNsQai7mgPm8zE) is an open-source LLM gateway: one OpenAI-compatible endpoint in front of your own models, with routing, fallback and a request log. Cygnus ships a loopback config for it, so the chat can fall back from LM Studio to Ollama without editing Settings again.
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --only-binary=:all: -r requirements.txt   # respan-gateway==0.3.0, Python 3.10+
-```
-
-```bash
-npm run gateway:check     # validate gateway.toml, start nothing
-npm run gateway           # serve http://127.0.0.1:8787
-```
-
-Then open **Settings → Respan Gateway** (base URL `http://127.0.0.1:8787/v1`, model `cygnus-agent`) and press **Apply**. **Fetch models** lists `cygnus-agent` along with every model the configured servers expose, so a real model ID works too. Start LM Studio's server or `ollama serve` first; the gateway answers `/healthz` either way. `http://127.0.0.1:8787/ui/` shows the request log.
-
-`gateway.toml` routes the alias `cygnus-agent` to LM Studio and then Ollama, each tried once with fallback to the next. To add a cloud fallback, uncomment a provider, add it to the route's `to` list, and put its key in `.env` (gitignored — the gateway reads the nearest `.env`, Cygnus reads the same file). Keys stay out of this config: `key = "env:OPENAI_API_KEY"` is only a reference. The listener stays on loopback because a keyless gateway spends your provider keys for anyone who reaches it.
-
-Checked with a local OpenAI-compatible fixture behind a gateway route: Cygnus's `/api/chat` streamed a `write_file` tool call, wrote `index.html`, then streamed the closing answer, and the gateway logged both turns of the agent loop as `200` for model `cygnus-agent`. A live provider request was **not** verified — the check used a fixture, not real Ollama, LM Studio or cloud credentials. Run it for real with the app as usual: `npm run dev`.
 
 ## How it works
 
@@ -142,8 +144,11 @@ app/api/models/route.ts      model discovery from any endpoint
 lib/llm.ts                   OpenAI-compatible streaming + tool-call assembly
 lib/tools.ts                 write_file, read_file, list_files, delete_file
 lib/workspace.ts             per-project folder, path containment, chat persistence
-gateway.toml                 Respan Gateway routes: cygnus-agent -> LM Studio, then Ollama
-requirements.txt             pinned respan-gateway (python3 -m respan_gateway, loopback)
+lib/localEngine.ts           managed Ollama install, model pulls, engine status
+app/api/opensource/route.ts  on-device status + NDJSON download progress
+lib/openSource.ts            fourteen on-device open-weight model catalog
+lib/byok.ts                  key-prefix detection + provider /models probe
+app/api/byok/route.ts        key -> provider/model detection
 workspaces/<id>/             generated index.html, styles.css, app.js, meta.json, chat.json
 ```
 

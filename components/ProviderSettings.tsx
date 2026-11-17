@@ -14,7 +14,6 @@ import type { ProviderConfig } from "@/lib/types";
 
 const HOSTED_PRESETS = PRESETS.filter((preset) => preset.group === "hosted");
 const LOCAL_PRESETS = PRESETS.filter((preset) => preset.group === "local");
-const CLOUD_PRESETS = PRESETS.filter((preset) => preset.group === "cloud");
 const CUSTOM_PRESETS = PRESETS.filter((preset) => preset.group === "custom");
 const DEMO_PRESETS = PRESETS.filter((preset) => preset.group === "demo");
 
@@ -111,10 +110,9 @@ export default function ProviderSettings({
 
   const hosted = HOSTED_PRESETS.filter(matches);
   const local = LOCAL_PRESETS.filter(matches);
-  const cloud = CLOUD_PRESETS.filter(matches);
   const custom = CUSTOM_PRESETS.filter(matches);
   const demo = DEMO_PRESETS.filter(matches);
-  const total = hosted.length + local.length + cloud.length + custom.length + demo.length;
+  const total = hosted.length + local.length + custom.length + demo.length;
 
   async function discover(config: ProviderConfig, autoPick: boolean) {
     const baseUrl = normalizeBaseUrl(config.baseUrl);
@@ -326,7 +324,7 @@ export default function ProviderSettings({
         <div className="picker-head">
           <div>
             <h2 id="model-settings-title">Models</h2>
-            <p>Choose hosted (no key), local (private), or connect a BYOK cloud provider.</p>
+            <p>On-device models and the one-box BYOK flow live in the composer picker. Use this page for free cloud, Ollama or LM Studio, or a custom endpoint.</p>
           </div>
           {!embedded ? (
             <button type="button" className="icon-btn" onClick={onClose} aria-label="Close models">
@@ -367,6 +365,11 @@ export default function ProviderSettings({
               spellCheck={false}
             />
 
+            <p className="picker-note">
+              Open-weight models from Qwen, Llama, OpenAI, Kimi, Granite, and more are in the
+              composer model menu. They download and run on this PC.
+            </p>
+
             {total === 0 ? <p className="picker-empty">No models match “{query}”.</p> : null}
 
             {hosted.length > 0 ? (
@@ -378,15 +381,8 @@ export default function ProviderSettings({
 
             {local.length > 0 ? (
               <>
-                <div className="model-group-label">Local runtimes · no key</div>
+                <div className="model-group-label">Local · Ollama or LM Studio</div>
                 {renderRows(local)}
-              </>
-            ) : null}
-
-            {cloud.length > 0 ? (
-              <>
-                <div className="model-group-label">BYOK cloud · API key</div>
-                {renderRows(cloud)}
               </>
             ) : null}
 

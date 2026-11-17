@@ -1,4 +1,4 @@
-import { normalizeBaseUrl } from "./endpoints";
+import { isLocalEndpoint, normalizeBaseUrl } from "./endpoints";
 import { HOSTED_BASE_URL, HOSTED_MODELS, findHostedModel } from "./hosted";
 import type { ProviderConfig } from "./types";
 
@@ -34,21 +34,11 @@ const HOSTED_PRESETS: ProviderPreset[] = HOSTED_MODELS.map((entry) => ({
 export const PRESETS: ProviderPreset[] = [
   ...HOSTED_PRESETS,
   {
-    id: "respan",
-    label: "Respan Gateway",
-    baseUrl: "http://127.0.0.1:8787/v1",
-    model: "cygnus-agent",
-    blurb: "One local endpoint that routes to your own models.",
-    needsKey: false,
-    group: "local",
-    local: true,
-  },
-  {
     id: "ollama",
     label: "Ollama",
     baseUrl: "http://localhost:11434/v1",
-    model: "qwen2.5-coder:7b",
-    blurb: "Fully local and free. Pull a tool-calling model first.",
+    model: "local-model",
+    blurb: "Run open models with Ollama on this machine.",
     needsKey: false,
     group: "local",
     local: true,
@@ -58,37 +48,7 @@ export const PRESETS: ProviderPreset[] = [
     label: "LM Studio",
     baseUrl: "http://localhost:1234/v1",
     model: "local-model",
-    blurb: "Start the local server, then fetch its models.",
-    needsKey: false,
-    group: "local",
-    local: true,
-  },
-  {
-    id: "vllm",
-    label: "vLLM",
-    baseUrl: "http://localhost:8000/v1",
-    model: "Qwen/Qwen3-Coder-30B-A3B-Instruct",
-    blurb: "Your own served model — fetch to match.",
-    needsKey: false,
-    group: "local",
-    local: true,
-  },
-  {
-    id: "llamacpp",
-    label: "llama.cpp",
-    baseUrl: "http://localhost:8080/v1",
-    model: "local-model",
-    blurb: "llama-server --api. Fetch to match.",
-    needsKey: false,
-    group: "local",
-    local: true,
-  },
-  {
-    id: "localai",
-    label: "LocalAI",
-    baseUrl: "http://localhost:8080/v1",
-    model: "local-model",
-    blurb: "Self-hosted OpenAI-compatible API.",
+    blurb: "Use the model loaded in LM Studio's local server.",
     needsKey: false,
     group: "local",
     local: true,
@@ -271,6 +231,7 @@ export function isHosted(provider: ProviderConfig): boolean {
 
 export function isKeylessProvider(provider: ProviderConfig): boolean {
   if (isDemo(provider) || isHosted(provider)) return true;
+  if (isLocalEndpoint(provider.baseUrl)) return true;
   const endpoint = normalizeBaseUrl(provider.baseUrl);
   const preset = PRESETS.find(
     (item) => item.baseUrl && normalizeBaseUrl(item.baseUrl) === endpoint,

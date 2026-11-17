@@ -414,7 +414,8 @@ export default function Builder({
                       <p>{message.error}</p>
                       <p className="hint">
                         Check the model settings, the API key, and that the provider supports tool
-                        calling. Local servers must be running.
+                        calling. On-device models download on first use; local servers must be
+                        running.
                       </p>
                     </div>
                   ) : null}

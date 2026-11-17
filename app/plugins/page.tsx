@@ -34,8 +34,8 @@ const RUNTIMES: Runtime[] = [
     mark: "OL",
     blurb: "The easiest way to run open-weight models on your own machine.",
     providerBaseUrl: "http://localhost:11434/v1",
-    fallbackModel: "qwen2.5-coder:7b",
-    command: "ollama pull qwen2.5-coder:7b",
+    fallbackModel: "qwen3:4b",
+    command: "ollama pull qwen3:4b",
     docs: "https://ollama.com",
   },
   {
@@ -48,28 +48,6 @@ const RUNTIMES: Runtime[] = [
     fallbackModel: "local-model",
     command: "Start Local Server on port 1234",
     docs: "https://lmstudio.ai",
-  },
-  {
-    id: "vllm",
-    probeId: "vllm",
-    name: "vLLM",
-    mark: "vL",
-    blurb: "High-throughput serving for larger GPUs and multi-user setups.",
-    providerBaseUrl: "http://localhost:8000/v1",
-    fallbackModel: "Qwen/Qwen3-Coder-30B-A3B-Instruct",
-    command: "vllm serve Qwen/Qwen3-Coder-30B-A3B-Instruct",
-    docs: "https://docs.vllm.ai",
-  },
-  {
-    id: "llamacpp",
-    probeId: "llamacpp",
-    name: "llama.cpp",
-    mark: "++",
-    blurb: "Run a single GGUF file with almost no framework overhead.",
-    providerBaseUrl: "http://localhost:8080/v1",
-    fallbackModel: "local-model",
-    command: "llama-server -m model.gguf --port 8080",
-    docs: "https://github.com/ggml-org/llama.cpp",
   },
 ];
 
@@ -124,10 +102,10 @@ export default function PluginsPage() {
           <span className="page-eyebrow">Plugins</span>
           <div className="page-head-row">
             <div>
-              <h1>Bring your own runtime.</h1>
+              <h1>Ollama or LM Studio.</h1>
               <p>
-                Cygnus talks to OpenAI-compatible local servers. Start one and it becomes a
-                model choice immediately — no account required.
+                Start either local server and it becomes a model choice immediately. No account
+                required; nothing leaves your machine.
               </p>
             </div>
             <button
@@ -153,8 +131,8 @@ export default function PluginsPage() {
           </strong>
           <span>
             {scanning
-              ? "Checking the usual localhost ports."
-              : "Start a server, then scan again. Nothing leaves your machine."}
+              ? "Checking localhost for Ollama and LM Studio."
+              : "Start Ollama or LM Studio, then scan again. Nothing leaves your machine."}
           </span>
         </div>
 
@@ -224,8 +202,8 @@ export default function PluginsPage() {
             <div>
               <strong>Prefer hosted or BYOK?</strong>
               <p>
-                The composer separates hosted open models (free, no key), local runtimes,
-                and BYOK providers. Cloud keys and custom endpoints live in Settings.
+                The composer separates free cloud models, on-device open-source models,
+                Ollama or LM Studio, and BYOK providers. Cloud keys live in Settings.
               </p>
             </div>
           </div>
