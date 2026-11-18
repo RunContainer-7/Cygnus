@@ -3,15 +3,18 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import FileDrawer from "@/components/FileDrawer";
+import ModeMenu from "@/components/ModeMenu";
 import ModelMenu from "@/components/ModelMenu";
 import { useProvider } from "@/components/ProviderContext";
 import { endpointHost, isLocalEndpoint } from "@/lib/endpoints";
 import { isDemo, isHosted, isKeylessProvider, providerLabel } from "@/lib/providers";
 import { isCygnusLocalProvider } from "@/lib/cygnus05Shared";
+import { loadMode, saveMode, type BuildMode } from "@/lib/modes";
 import type {
   AgentRun,
   AskPrompt,
   BlueprintTask,
+  ChatEvent,
   ChatMessage,
   ProjectData,
   ReasoningNode,
@@ -61,6 +64,7 @@ const AGENT_LABELS: Record<AgentRun["agent"], string> = {
   web_researcher: "Web researcher",
   expert: "Expert",
   catalyst: "Catalyst",
+  harmoniser: "Harmoniser",
 };
 
 function lastReasoningIndex(nodes: ReasoningNode[], depth: number): number {
@@ -94,6 +98,12 @@ export default function Builder({
   const [panel, setPanel] = useState<PanelId>("preview");
   const [codeFile, setCodeFile] = useState<string | null>(null);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [mode, setMode] = useState<BuildMode>("chat");
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [push, setPush] = useState<{ busy: boolean; result?: string; error?: string }>({
+    busy: false,
+  });
+  const [repoDraft, setRepoDraft] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -116,6 +126,7 @@ export default function Builder({
   }, [projectId]);
 
   useEffect(() => {
+    setMode(loadMode());
     refresh().catch((error: Error) => setLoadError(error.message));
   }, [refresh]);
 
@@ -144,7 +155,7 @@ export default function Builder({
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, message: text, provider: config }),
+        body: JSON.stringify({ projectId, message: text, provider: config, mode }),
         signal: controller.signal,
       });
 
@@ -169,7 +180,16 @@ export default function Builder({
         if (event.type === "text" && typeof event.value === "string") {
           const delta = event.value;
           setMessages((previous) =>
-            updateLast(previous, (message) => ({ ...message, content: message.content + delta })),
+            updateLast(previous, (message) => {
+              const events: ChatEvent[] = [...(message.events ?? [])];
+              const last = events[events.length - 1];
+              if (last && last.type === "text") {
+                events[events.length - 1] = { type: "text", text: last.text + delta };
+              } else {
+                events.push({ type: "text", text: delta });
+              }
+              return { ...message, content: message.content + delta, events };
+            }),
           );
           return;
         }
@@ -187,6 +207,7 @@ export default function Builder({
             updateLast(previous, (message) => ({
               ...message,
               tools: [...(message.tools ?? []), tool],
+              events: [...(message.events ?? []), { type: "tool" as const, tool }],
             })),
           );
           return;
@@ -361,6 +382,49 @@ export default function Builder({
     } catch {
       setCopied(null);
     }
+  }
+
+  async function pushToGithub() {
+    if (push.busy) return;
+    setPush({ busy: true });
+    try {
+      const response = await fetch("/api/github/push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          ...(project?.github ? {} : { repo: repoDraft.trim() }),
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        files?: number;
+        repo?: string;
+        commitUrl?: string;
+        error?: string;
+      };
+      if (!response.ok) throw new Error(data.error ?? "Could not push to GitHub.");
+      setPush({
+        busy: false,
+        result: `Pushed ${data.files ?? 0} files to ${data.repo ?? "GitHub"}.`,
+      });
+      await refresh();
+      setRepoDraft("");
+    } catch (error) {
+      setPush({
+        busy: false,
+        error: error instanceof Error ? error.message : "Could not push to GitHub.",
+      });
+    }
+  }
+
+  async function removeProject() {
+    if (!deleteArmed) {
+      setDeleteArmed(true);
+      return;
+    }
+    const response = await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
+    if (response.ok) router.push("/");
+    else setDeleteArmed(false);
   }
 
   async function answerAsk(id: string, answer: string) {
@@ -554,9 +618,32 @@ export default function Builder({
                     </div>
                   ) : null}
                   {message.reasoning && message.reasoning.length > 0 ? (
-                    <ReasoningBlock nodes={message.reasoning} />
+                    <ReasoningBlock
+                      nodes={message.reasoning}
+                      live={busy && index === messages.length - 1}
+                    />
                   ) : null}
-                  {message.content ? (
+                  {message.events && message.events.length > 0 ? (
+                    <div className="live-timeline">
+                      {message.events.map((event, eventIndex) =>
+                        event.type === "text" ? (
+                          <div className="bubble assistant-bubble" key={`event-${eventIndex}`}>
+                            {event.text}
+                          </div>
+                        ) : (
+                          <ToolLine
+                            key={`event-${eventIndex}`}
+                            tool={event.tool}
+                            onOpen={() => {
+                              if (!event.tool.path) return;
+                              setDrawerFile(event.tool.path);
+                              setFilesOpen(true);
+                            }}
+                          />
+                        ),
+                      )}
+                    </div>
+                  ) : message.content ? (
                     <div className="bubble assistant-bubble">{message.content}</div>
                   ) : null}
                   {message.content ? (
@@ -580,7 +667,9 @@ export default function Builder({
                   {message.agents && message.agents.length > 0 ? (
                     <AgentRuns runs={message.agents} />
                   ) : null}
-                  {message.tools && message.tools.length > 0 ? (
+                  {message.tools &&
+                  message.tools.length > 0 &&
+                  !(message.events && message.events.length > 0) ? (
                     <details
                       className="tool-list"
                       open={
@@ -630,6 +719,7 @@ export default function Builder({
                   {!message.content &&
                   !message.error &&
                   !(message.asks?.some((ask) => ask.status === "pending")) &&
+                  !(message.events && message.events.length > 0) &&
                   busy &&
                   index === messages.length - 1 ? (
                     <div className="typing" aria-label="Cygnus is working">
@@ -670,6 +760,13 @@ export default function Builder({
               aria-label="Message Cygnus"
             />
             <div className="composer-row">
+              <ModeMenu
+                mode={mode}
+                onChange={(next) => {
+                  setMode(next);
+                  saveMode(next);
+                }}
+              />
               <div className="composer-model-wrap">
                 <button
                   type="button"
@@ -963,6 +1060,41 @@ export default function Builder({
                 <span>Files</span>
                 <strong>{files.length}</strong>
               </div>
+              <div className="settings-github">
+                <div className="settings-row">
+                  <span>GitHub repo</span>
+                  <strong>
+                    {project?.github
+                      ? `${project.github.repo} · ${project.github.branch}`
+                      : "Not linked"}
+                  </strong>
+                </div>
+                {project?.github ? null : (
+                  <input
+                    className="settings-input"
+                    value={repoDraft}
+                    onChange={(event) => setRepoDraft(event.target.value)}
+                    placeholder="owner/repo "
+                    aria-label="GitHub repository"
+                    spellCheck={false}
+                  />
+                )}
+                <div className="settings-actions">
+                  <button
+                    type="button"
+                    onClick={() => void pushToGithub()}
+                    disabled={push.busy || (!project?.github && !repoDraft.trim())}
+                  >
+                    {push.busy ? "Pushing…" : project?.github ? "Push to GitHub" : "Link & push"}
+                  </button>
+                  <button type="button" onClick={() => router.push("/settings#github")}>
+                    GitHub settings
+                  </button>
+                </div>
+                {push.error ? <p className="settings-note warn">{push.error}</p> : null}
+                {push.result ? <p className="settings-note">{push.result}</p> : null}
+              </div>
+
               <div className="settings-actions">
                 <button type="button" onClick={() => router.push("/settings")}>
                   Manage models
@@ -982,6 +1114,15 @@ export default function Builder({
                 Keys never leave this browser. Generated files live in the project folder on this
                 machine.
               </p>
+              <div className="settings-danger">
+                <div>
+                  <strong>Delete this project</strong>
+                  <span>Removes its files and chat from this computer.</span>
+                </div>
+                <button type="button" className="danger-btn" onClick={() => void removeProject()}>
+                  {deleteArmed ? "Click again to confirm" : "Delete"}
+                </button>
+              </div>
             </div>
           ) : null}
         </section>
@@ -1115,28 +1256,74 @@ function BlueprintCard({ tasks }: { tasks: BlueprintTask[] }) {
   );
 }
 
-function ReasoningBlock({ nodes }: { nodes: ReasoningNode[] }) {
+function ToolLine({ tool, onOpen }: { tool: ToolEvent; onOpen: () => void }) {
+  const label = tool.message || tool.name;
   return (
-    <details className="reasoning-block">
+    <button
+      type="button"
+      className={`tool-line ${tool.ok ? "ok" : "warn"}`}
+      onClick={onOpen}
+      disabled={!tool.path}
+      title={tool.detail ?? tool.path ?? label}
+    >
+      <span className="tool-line-icon" aria-hidden="true">
+        {tool.ok ? "✓" : "!"}
+      </span>
+      <span className="tool-line-text">{label}</span>
+      {tool.path ? <code>{tool.path}</code> : null}
+    </button>
+  );
+}
+
+function ReasoningBlock({ nodes, live }: { nodes: ReasoningNode[]; live: boolean }) {
+  const tail = nodes[nodes.length - 1]?.text ?? "";
+  const preview = live ? tail.replace(/\s+/g, " ").trim().slice(-90) : "";
+
+  return (
+    <details className={`reasoning-block ${live ? "live" : ""}`}>
       <summary>
-        <span>Reasoning</span>
+        <span className="reasoning-title">
+          {live ? (
+            <>
+              <i className="reasoning-pulse" aria-hidden="true" />
+              Thinking…
+            </>
+          ) : (
+            "Reasoning"
+          )}
+        </span>
+        {preview ? <span className="reasoning-preview">{preview}</span> : null}
         <em>
           {nodes.length} layer{nodes.length === 1 ? "" : "s"}
         </em>
       </summary>
       <div className="reasoning-list">
-        {nodes.map((node, index) => (
-          <div
-            className="reasoning-node"
-            key={`${node.depth}-${index}`}
-            style={{ marginLeft: Math.min(node.depth, 8) * 12 }}
-          >
-            <span className="reasoning-depth">
-              {node.label ?? (node.depth === 0 ? "Thinking" : `Layer ${node.depth}`)}
-            </span>
-            <p>{node.text}</p>
-          </div>
-        ))}
+        {nodes.map((node, index) => {
+          const label = node.label ?? (node.depth === 0 ? "Thinking" : `Layer ${node.depth}`);
+          if (node.depth === 0) {
+            return (
+              <div className="reasoning-node" key={`${node.depth}-${index}`}>
+                <span className="reasoning-depth">{label}</span>
+                <p>{node.text}</p>
+              </div>
+            );
+          }
+          return (
+            <details
+              className="reasoning-node nested"
+              key={`${node.depth}-${index}`}
+              style={{ marginLeft: Math.min(node.depth, 8) * 12 }}
+            >
+              <summary>
+                <span className="reasoning-depth">{label}</span>
+                <span className="reasoning-peek">
+                  {node.text.replace(/\s+/g, " ").trim().slice(0, 110)}
+                </span>
+              </summary>
+              <p>{node.text}</p>
+            </details>
+          );
+        })}
       </div>
     </details>
   );

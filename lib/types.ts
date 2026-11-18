@@ -22,6 +22,11 @@ export type ToolEvent = {
   kind?: ToolKind;
 };
 
+/** Ordered narration so the chat shows a file edit exactly when it happens. */
+export type ChatEvent =
+  | { type: "text"; text: string }
+  | { type: "tool"; tool: ToolEvent };
+
 export type ReasoningNode = {
   depth: number;
   text: string;
@@ -34,7 +39,7 @@ export type BlueprintTask = {
   status: "pending" | "active" | "done";
 };
 
-export type AgentName = "web_researcher" | "expert" | "catalyst";
+export type AgentName = "web_researcher" | "expert" | "catalyst" | "harmoniser";
 
 export type AgentRun = {
   id: string;
@@ -57,6 +62,7 @@ export type AskPrompt = {
 export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
+  events?: ChatEvent[];
   tools?: ToolEvent[];
   reasoning?: ReasoningNode[];
   blueprint?: BlueprintTask[];
@@ -70,6 +76,11 @@ export type ProjectMeta = {
   id: string;
   name: string;
   createdAt: string;
+  github?: {
+    repo: string;
+    branch: string;
+    htmlUrl?: string;
+  };
 };
 
 export type ProjectData = ProjectMeta & {

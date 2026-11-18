@@ -2,7 +2,7 @@ import { streamModelTurn, type WireMessage } from "./llm";
 import type { ProviderConfig } from "./types";
 import { listFiles, readChat, readFileSafe } from "./workspace";
 
-export type SubAgentType = "web_researcher" | "expert" | "catalyst";
+export type SubAgentType = "web_researcher" | "expert" | "catalyst" | "harmoniser";
 
 export type SubAgentResult = {
   agent: SubAgentType;
@@ -358,6 +358,16 @@ The main agent needs to move faster. Produce a tight execution plan it can apply
 Include the exact files to change, the order of tool calls, and complete replacement file contents when a rewrite is faster than patching.
 Keep the plan small enough to execute now. Do not ask questions and do not call tools.`;
 
+const HARMONISER_SYSTEM = `You are the Harmoniser Agent inside Cygnus, an app-building agent.
+Two or more parties disagree: the main model and another sub-agent (Expert, Catalyst, or the Web Researcher), or the main model and the user. Positions may be in the task, the transcript, or the project.
+Your job is mediation, not winning. Do this in order:
+1. Name each position in one sentence, fairly, in its strongest form.
+2. Separate facts both sides already share from the actual point of conflict. Say plainly which claims are verifiable in the project and which are opinions.
+3. Give the resolution: the single next action both sides can accept, and the trade-off it accepts. If one side is simply wrong, say so kindly and say why.
+4. If a real user decision is needed, state the one question to ask and the two best options.
+Tone: calm, neutral, concrete. No blame, no hedging, no lecturing, no restating the whole project.
+Keep it under 220 words. Do not call tools and do not edit files.`;
+
 function agentPrompt(type: SubAgentType, task: string, brief: string, transcript: string): string {
   if (type === "expert") {
     return `TASK\n${task}\n\nRECENT TRANSCRIPT\n${transcript || "(none)"}\n\nCURRENT PROJECT\n${brief}`;
@@ -428,7 +438,12 @@ export async function runSubAgent(options: {
     ? options.transcript.slice(-12_000)
     : await recentTranscript(options.projectId);
 
-  const system = options.type === "expert" ? EXPERT_SYSTEM : CATALYST_SYSTEM;
+  const system =
+    options.type === "expert"
+      ? EXPERT_SYSTEM
+      : options.type === "harmoniser"
+        ? HARMONISER_SYSTEM
+        : CATALYST_SYSTEM;
   const prompt = agentPrompt(options.type, task, brief, transcript);
   let failed = false;
   let summary = await askModel({

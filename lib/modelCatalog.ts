@@ -35,6 +35,7 @@ export type OpenModel = {
   minRamGb?: number;
   tag?: string;
   experimental?: boolean;
+  tools?: boolean;
 };
 
 export const MODEL_TIERS: Array<{ id: ModelTier; label: string; hint: string }> = [
@@ -81,6 +82,7 @@ const CYGNUS_ENTRIES: OpenModel[] = [
     note: "5.3M parameters trained from random weights on this PC. Chat only; not recommended for real work.",
     family: "Cygnus",
     kind: "chat",
+    tools: false,
     size: "21 MB",
     minRamGb: 1,
     experimental: true,
@@ -103,6 +105,7 @@ const ON_DEVICE_ENTRIES: OpenModel[] = OPEN_SOURCE_ENGINE_MODELS.map((entry) => 
   size: entry.size,
   minRamGb: entry.minRamGb,
   tag: entry.tag,
+  tools: entry.tools,
 }));
 
 /**

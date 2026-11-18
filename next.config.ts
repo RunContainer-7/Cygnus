@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import pkg from "./package.json";
 
 const devOrigins = (process.env.CYGNUS_DEV_ORIGINS ?? "")
   .split(",")
@@ -11,6 +12,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: devOrigins,
   devIndicators: false,
+  env: {
+    NEXT_PUBLIC_CYGNUS_VERSION: pkg.version,
+  },
   // The desktop build runs the app from a bundled standalone server.
   output: isDesktopBuild ? "standalone" : undefined,
   experimental: isDesktopBuild

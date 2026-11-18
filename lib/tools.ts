@@ -1,4 +1,5 @@
 import { testProject } from "./appTest";
+import { githubStatus, pushProject } from "./github";
 import { fetchPublicPage, runSubAgent, type SubAgentType } from "./subagents";
 import type {
   AgentName,
@@ -12,6 +13,7 @@ import {
   deleteFileSafe,
   listFiles,
   readFileSafe,
+  readMeta,
   writeFileSafe,
 } from "./workspace";
 
@@ -19,6 +21,7 @@ const AGENT_LABELS: Record<AgentName, string> = {
   web_researcher: "Web researcher",
   expert: "Expert",
   catalyst: "Catalyst",
+  harmoniser: "Harmoniser",
 };
 
 export const toolDefinitions = [
@@ -188,7 +191,7 @@ export const toolDefinitions = [
     function: {
       name: "spawn_agents",
       description:
-        "Bring in specialised sub-agents. web_researcher searches the web and reads pages for current facts or docs. expert diagnoses the project when you are stuck, looping, or unsure. catalyst returns a fast execution plan with code-ready replacements. Give each agent a specific task; use this when their help is genuinely useful, not for work you can do directly.",
+        "Bring in specialised sub-agents. web_researcher searches the web and reads pages for current facts or docs. expert diagnoses the project when you are stuck, looping, or unsure. catalyst returns a fast execution plan with code-ready replacements. harmoniser mediates when you, the user, or another sub-agent disagree or argue: give it both positions and it returns a fair resolution. Give each agent a specific task; use this when their help is genuinely useful, not for work you can do directly.",
       parameters: {
         type: "object",
         properties: {
@@ -201,7 +204,7 @@ export const toolDefinitions = [
               properties: {
                 type: {
                   type: "string",
-                  enum: ["web_researcher", "expert", "catalyst"],
+                  enum: ["web_researcher", "expert", "catalyst", "harmoniser"],
                 },
                 task: {
                   type: "string",
@@ -291,6 +294,37 @@ export const toolDefinitions = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "github_status",
+      description:
+        "Check whether this project is linked to a GitHub repository and whether GitHub is connected. Use it before promising to push.",
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "github_push",
+      description:
+        "Commit the project's files to its linked GitHub repository and branch. Only works in Build mode, and only when the user has connected GitHub and linked a repo.",
+      parameters: {
+        type: "object",
+        properties: {
+          message: {
+            type: "string",
+            description: "Optional short reason for the commit.",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 export type ToolContext = {
@@ -339,8 +373,27 @@ function parseArguments(rawArguments: string): Record<string, unknown> | null {
 }
 
 function isAgentName(value: unknown): value is AgentName {
-  return value === "web_researcher" || value === "expert" || value === "catalyst";
+  return (
+    value === "web_researcher" ||
+    value === "expert" ||
+    value === "catalyst" ||
+    value === "harmoniser"
+  );
 }
+
+/** Tools Plan mode may call: everything that cannot change the project. */
+export const PLAN_TOOL_ALLOWLIST = new Set([
+  "read_file",
+  "list_files",
+  "search_files",
+  "fetch_url",
+  "blueprint",
+  "spawn_agents",
+  "nested_reasoning",
+  "test_app",
+  "user_ask",
+  "github_status",
+]);
 
 async function runAgents(
   projectId: string,
@@ -360,7 +413,7 @@ async function runAgents(
 
   if (requests.length === 0) {
     return failure(
-      "spawn_agents needs at least one agent with a type (web_researcher, expert, or catalyst) and a task.",
+      "spawn_agents needs at least one agent with a type (web_researcher, expert, catalyst, or harmoniser) and a task.",
       "No valid sub-agent request",
       "agent",
     );
@@ -701,6 +754,39 @@ export async function runTool(
       };
     }
 
+    if (name === "github_status") {
+      const status = await githubStatus();
+      const meta = await readMeta(projectId);
+      if (!status.connected) {
+        return {
+          ok: false,
+          message:
+            "GitHub is not connected. The user connects it in Settings → GitHub with their own token.",
+          display: "GitHub not connected",
+          kind: "web",
+        };
+      }
+      return {
+        ok: true,
+        message: meta.github
+          ? `GitHub: signed in as ${status.login}. This project is linked to ${meta.github.repo} (${meta.github.branch}).`
+          : `GitHub: signed in as ${status.login}. This project is not linked to a repository yet.`,
+        display: meta.github ? `GitHub · ${meta.github.repo}` : "GitHub connected",
+        kind: "web",
+      };
+    }
+
+    if (name === "github_push") {
+      const push = await pushProject(projectId);
+      return {
+        ok: true,
+        message: `Pushed ${push.files} files to ${push.repo} (${push.branch}). Commit: ${push.commitUrl}`,
+        display: `Pushed to ${push.repo}`,
+        detail: push.commitUrl,
+        kind: "web",
+      };
+    }
+
     if (name === "test_app") {
       const focus = typeof args.focus === "string" ? args.focus.trim() : "";
       const result = await testProject(projectId, context.origin);
@@ -714,7 +800,7 @@ export async function runTool(
     }
 
     return failure(
-      `Unknown tool "${name}". Use write_file, read_file, list_files, search_files, fetch_url, delete_file, blueprint, spawn_agents, nested_reasoning, test_app or user_ask.`,
+      `Unknown tool "${name}". Use write_file, read_file, list_files, search_files, fetch_url, delete_file, blueprint, spawn_agents, nested_reasoning, test_app, user_ask, github_status or github_push.`,
       `Unknown tool ${name}`,
     );
   } catch (error) {

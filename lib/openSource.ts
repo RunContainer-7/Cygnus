@@ -11,6 +11,7 @@ export type OpenSourceFamily =
   | "Llama"
   | "OpenAI"
   | "Kimi"
+  | "Ling"
   | "Solar"
   | "Muse"
   | "Essential"
@@ -194,6 +195,19 @@ export const OPEN_SOURCE_ENGINE_MODELS: OpenSourceModel[] = [
     note: "Meta's 30B multimodal model with 128K context, vision, thinking and tools.",
     tier: "max",
     badge: "Multimodal",
+    tools: true,
+  },
+  {
+    id: "ling-3-tiny",
+    family: "Ling",
+    name: "Ling 3.0 Tiny",
+    tag: "hf.co/inclusionAI/Ling-3.0-tiny-GGUF:Q4_K_M",
+    size: "4.9 GB",
+    minRamGb: 8,
+    note: "InclusionAI's MIT-licensed 8B MoE with 1.3B active parameters, hybrid reasoning and tool calling.",
+    tier: "low",
+    badge: "MIT",
+    recommended: true,
     tools: true,
   },
   {

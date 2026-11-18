@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import GitHubPanel from "@/components/GitHubPanel";
 import ProviderSettings from "@/components/ProviderSettings";
 import { useProvider } from "@/components/ProviderContext";
 
@@ -26,6 +27,8 @@ export default function SettingsPage() {
           onSave={chooseProvider}
           onClose={() => {}}
         />
+
+        <GitHubPanel />
 
         <div className="settings-footer-links">
           <Link href="/plugins">

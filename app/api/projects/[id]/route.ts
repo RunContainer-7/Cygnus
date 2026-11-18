@@ -1,4 +1,5 @@
 import {
+  deleteProject,
   isValidProjectId,
   listFiles,
   projectExists,
@@ -33,4 +34,16 @@ export async function GET(
     { ...meta, files: withContent, chat },
     { headers: { "Cache-Control": "no-store" } },
   );
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  if (!isValidProjectId(id) || !(await projectExists(id))) {
+    return Response.json({ error: "Project not found." }, { status: 404 });
+  }
+  await deleteProject(id);
+  return Response.json({ ok: true, id });
 }

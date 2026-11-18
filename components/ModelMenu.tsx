@@ -35,7 +35,7 @@ type ByokResult = {
 
 const ACCESS_TABS: Array<{ id: MenuTab; label: string; sub: string }> = [
   { id: "open", label: "Open source", sub: "On this PC" },
-  { id: "local", label: "Local", sub: "Ollama · LM Studio" },
+  { id: "local", label: "Local", sub: "Servers you run" },
   { id: "byok", label: "BYOK", sub: "One key" },
 ];
 
@@ -511,6 +511,14 @@ export default function ModelMenu({
           ))}
         </div>
 
+        <div className="mp-legend" aria-label="Model color key">
+          <span><i className="cloud" />Free cloud</span>
+          <span><i className="local" />On this PC</span>
+          <span><i className="cygnus" />Cygnus</span>
+          <span><i className="byok" />BYOK</span>
+          <span><i className="selected" />Selected</span>
+        </div>
+
         <div className="mp-scroll" role="tabpanel" aria-label="Model options">
           {access === "open" ? (
             <>
@@ -542,8 +550,8 @@ export default function ModelMenu({
                       : engineError
                         ? "Local engine unavailable."
                         : engineStatus?.engine.installed
-                          ? "Local engine ready. First use of a model downloads it."
-                          : "First use installs a one-time local engine (~1.5 GB). Models run on this PC; nothing leaves it."}
+                          ? "Cygnus's own engine is ready. First use of a model downloads it."
+                          : "Nothing for you to install. Cygnus fetches its own private engine on first use, then the model. Everything runs on this PC."}
                   </p>
                   {engineError ? (
                     <p className="mp-error" role="alert">
@@ -558,8 +566,8 @@ export default function ModelMenu({
               <div className="mp-group-label">Connect a local runtime</div>
               {visible.map(renderRow)}
               <p className="mp-engine-note">
-                Cygnus uses the model already loaded in Ollama or LM Studio. No model
-                downloads here.
+                This tab connects to a server you already run: Ollama or LM Studio.
+                The On this PC tab needs neither.
               </p>
             </>
           ) : (
@@ -750,6 +758,14 @@ function ModelRow({
   onChoose: () => void;
 }) {
   const needsKey = entry.access === "byok" && !hasKey;
+  const lane =
+    entry.access === "hosted"
+      ? "cloud"
+      : entry.access === "cygnus"
+        ? "cygnus"
+        : entry.access === "byok"
+          ? "byok"
+          : "local";
   const subtitle =
     entry.access === "hosted"
       ? entry.note
@@ -762,7 +778,7 @@ function ModelRow({
   return (
     <button
       type="button"
-      className={`mp-row ${active ? "active" : ""}`}
+      className={`mp-row lane-${lane} ${active ? "active" : ""}`}
       onClick={onChoose}
       aria-pressed={active}
       aria-busy={busy}

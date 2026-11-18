@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import ConstellationBackground from "@/components/ConstellationBackground";
 import Icon from "@/components/Icon";
+import ModeMenu from "@/components/ModeMenu";
 import ModelMenu from "@/components/ModelMenu";
 import { useProvider } from "@/components/ProviderContext";
 import TemplateCard from "@/components/TemplateCard";
+import { loadMode, saveMode, type BuildMode } from "@/lib/modes";
 import { isDemo, providerLabel } from "@/lib/providers";
 import { TEMPLATES } from "@/lib/templates";
 
@@ -24,7 +26,12 @@ export default function HomePage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [mode, setMode] = useState<BuildMode>("chat");
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    setMode(loadMode());
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -106,10 +113,13 @@ export default function HomePage() {
 
             <div className="hero-composer-bar">
               <div className="hero-composer-tools">
-                <span className="hero-build-mode">
-                  <Icon name="sparkles" size={14} />
-                  Build
-                </span>
+                <ModeMenu
+                  mode={mode}
+                  onChange={(next) => {
+                    setMode(next);
+                    saveMode(next);
+                  }}
+                />
                 <span className="hero-tool-divider" aria-hidden="true" />
                 <div className="hero-model-wrap">
                   <button

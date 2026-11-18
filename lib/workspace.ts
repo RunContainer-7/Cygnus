@@ -98,15 +98,51 @@ export async function projectExists(id: string): Promise<boolean> {
   }
 }
 
+export async function writeMeta(meta: ProjectMeta): Promise<void> {
+  const dir = projectDir(meta.id);
+  await fs.writeFile(
+    path.join(dir, "meta.json"),
+    JSON.stringify(
+      {
+        id: meta.id,
+        name: meta.name,
+        createdAt: meta.createdAt,
+        ...(meta.github ? { github: meta.github } : {}),
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  const dir = projectDir(id);
+  await fs.rm(dir, { recursive: true, force: true });
+}
+
 export async function readMeta(id: string): Promise<ProjectMeta> {
   const dir = projectDir(id);
   const raw = await fs.readFile(path.join(dir, "meta.json"), "utf8");
   const parsed = JSON.parse(raw) as Partial<ProjectMeta>;
+  const github =
+    parsed.github &&
+    typeof parsed.github === "object" &&
+    typeof parsed.github.repo === "string"
+      ? {
+          repo: parsed.github.repo,
+          branch:
+            typeof parsed.github.branch === "string" ? parsed.github.branch : "main",
+          htmlUrl:
+            typeof parsed.github.htmlUrl === "string" ? parsed.github.htmlUrl : undefined,
+        }
+      : undefined;
+
   return {
     id,
     name: typeof parsed.name === "string" ? parsed.name : "Untitled project",
     createdAt:
       typeof parsed.createdAt === "string" ? parsed.createdAt : new Date().toISOString(),
+    ...(github ? { github } : {}),
   };
 }
 

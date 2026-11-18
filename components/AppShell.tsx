@@ -8,6 +8,7 @@ import Logo from "./Logo";
 import UpdateToast from "./UpdateToast";
 import { useProvider } from "./ProviderContext";
 import { providerLabel } from "@/lib/providers";
+import { APP_VERSION } from "@/lib/version";
 
 type ProjectSummary = {
   id: string;
@@ -152,6 +153,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     });
   }
 
+  async function removeProject(project: ProjectSummary) {
+    const confirmed = window.confirm(
+      `Delete “${project.name}”? Its files and chat history are removed from this computer.`,
+    );
+    if (!confirmed) return;
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Could not delete that app.");
+      setProjects((previous) => previous.filter((item) => item.id !== project.id));
+      setFavorites((previous) => previous.filter((id) => id !== project.id));
+      if (project.id === activeId) router.push("/");
+    } catch {
+      window.alert("That app could not be deleted. Check that no preview is holding its files.");
+    }
+  }
+
   function togglePanel() {
     if (window.matchMedia("(max-width: 1040px)").matches) {
       setMobilePanelOpen(true);
@@ -191,6 +208,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           title={favorite ? "Remove from favorites" : "Add to favorites"}
         >
           <Icon name={favorite ? "starFilled" : "star"} size={14} />
+        </button>
+        <button
+          type="button"
+          className="app-delete"
+          onClick={() => void removeProject(project)}
+          aria-label={`Delete ${project.name}`}
+          title="Delete app"
+        >
+          <Icon name="trash" size={13} />
         </button>
       </div>
     );
@@ -288,6 +314,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             New app
           </Link>
 
+          <Link
+            href="/settings#github"
+            className="panel-import"
+            onClick={() => setMobilePanelOpen(false)}
+          >
+            <Icon name="library" size={14} />
+            Import from GitHub
+          </Link>
+
           <label className="panel-search">
             <Icon name="search" size={15} />
             <input
@@ -373,6 +408,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <main className="shell-main">{children}</main>
       </div>
+
+      <footer className="shell-versionbar">
+        <span>Cygnus v{APP_VERSION}</span>
+        <span className="shell-version-sep" aria-hidden="true" />
+        <span>MIT · runs on this computer</span>
+      </footer>
 
       <UpdateToast />
     </div>

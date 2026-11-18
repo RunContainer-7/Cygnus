@@ -4,14 +4,16 @@ import { streamCygnusChat, type CygnusChatTurn } from "@/lib/cygnus05";
 import { isCygnusLocalProvider } from "@/lib/cygnus05Shared";
 import { normalizeBaseUrl } from "@/lib/endpoints";
 import { streamModelTurn, type WireMessage } from "@/lib/llm";
+import { isBuildMode, type BuildMode } from "@/lib/modes";
 import { openAsk } from "@/lib/pendingAsks";
 import { isDemo } from "@/lib/providers";
 import { buildSystemPrompt } from "@/lib/systemPrompt";
-import { runTool, toolDefinitions } from "@/lib/tools";
+import { PLAN_TOOL_ALLOWLIST, runTool, toolDefinitions } from "@/lib/tools";
 import type {
   AgentRun,
   AskPrompt,
   BlueprintTask,
+  ChatEvent,
   ProviderConfig,
   ReasoningNode,
   ToolEvent,
@@ -36,6 +38,7 @@ type ChatBody = {
   projectId?: string;
   message?: string;
   provider?: ProviderConfig;
+  mode?: string;
 };
 
 function parseToolArguments(raw: string): Record<string, unknown> {
@@ -53,6 +56,7 @@ function agentLabel(value: string): string {
   if (value === "web_researcher") return "the web researcher";
   if (value === "expert") return "the expert agent";
   if (value === "catalyst") return "the catalyst agent";
+  if (value === "harmoniser") return "the harmoniser agent";
   return value;
 }
 
@@ -82,6 +86,8 @@ function toolStatus(name: string, rawArguments: string): string {
   if (name === "blueprint") return "Updating the plan";
   if (name === "test_app") return "Testing the app";
   if (name === "nested_reasoning") return "Thinking deeper";
+  if (name === "github_status") return "Checking GitHub";
+  if (name === "github_push") return "Pushing to GitHub";
   if (name === "user_ask") return "Waiting for your answer";
   if (name === "spawn_agents") {
     const agents = Array.isArray(args.agents) ? args.agents : [];
@@ -122,7 +128,8 @@ export async function POST(request: NextRequest) {
 
   const projectId = typeof body.projectId === "string" ? body.projectId : "";
   const userMessage = typeof body.message === "string" ? body.message.trim() : "";
-  const provider = body.provider;
+    const provider = body.provider;
+  const mode: BuildMode = isBuildMode(body.mode) ? body.mode : "chat";
 
   if (!isValidProjectId(projectId) || !userMessage) {
     return Response.json(
@@ -224,7 +231,13 @@ export async function POST(request: NextRequest) {
           })),
         );
 
-        const systemPrompt = buildSystemPrompt(filesWithContent);
+        const systemPrompt = buildSystemPrompt(filesWithContent, mode);
+        const activeTools =
+          mode === "chat"
+            ? []
+            : mode === "plan"
+              ? toolDefinitions.filter((tool) => PLAN_TOOL_ALLOWLIST.has(tool.function.name))
+              : toolDefinitions;
         const priorMessages = history
           .slice(-16)
           .filter((entry) => entry.content.trim().length > 0)
@@ -237,6 +250,12 @@ export async function POST(request: NextRequest) {
         ];
 
         let assistantText = "";
+        const timeline: ChatEvent[] = [];
+        const appendText = (delta: string) => {
+          const last = timeline[timeline.length - 1];
+          if (last && last.type === "text") last.text += delta;
+          else timeline.push({ type: "text", text: delta });
+        };
         const toolsUsed: ToolEvent[] = [];
         const asked: AskPrompt[] = [];
         const assistantReasoning: ReasoningNode[] = [];
@@ -261,16 +280,17 @@ export async function POST(request: NextRequest) {
           const turn = await streamModelTurn({
             provider: normalizedProvider,
             messages: wire,
-            tools: toolDefinitions,
+            tools: activeTools,
             signal: request.signal,
             onText: (delta) => {
               assistantText += delta;
+              appendText(delta);
               send({ type: "text", value: delta });
             },
             onReasoning,
           });
 
-          if (turn.toolCalls.length === 0) break;
+          if (turn.toolCalls.length === 0 || mode === "chat") break;
 
           wire.push({
             role: "assistant",
@@ -336,6 +356,7 @@ export async function POST(request: NextRequest) {
               kind: result.kind,
             };
             toolsUsed.push(event);
+            timeline.push({ type: "tool", tool: event });
             send({ type: "tool", ...event });
             wire.push({
               role: "tool",
@@ -351,6 +372,7 @@ export async function POST(request: NextRequest) {
         await appendChat(projectId, {
           role: "assistant",
           content: assistantText,
+          ...(timeline.length > 0 ? { events: timeline } : {}),
           tools: toolsUsed,
           ...(assistantReasoning.length > 0 ? { reasoning: assistantReasoning } : {}),
           ...(blueprint ? { blueprint } : {}),

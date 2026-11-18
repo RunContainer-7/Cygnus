@@ -24,7 +24,8 @@ export type IconName =
   | "refresh"
   | "check"
   | "chevronDown"
-  | "sliders";
+  | "sliders"
+  | "trash";
 
 const PATHS: Record<IconName, ReactNode> = {
   apps: (
@@ -128,6 +129,12 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   check: <path d="m5 12 4.5 4.5L19 6.5" />,
   chevronDown: <path d="m6 9 6 6 6-6" />,
+  trash: (
+    <>
+      <path d="M4 7h16M10 4h4M9 7v12M15 7v12" />
+      <path d="M6 7h12l-1 13H7Z" />
+    </>
+  ),
   sliders: (
     <>
       <path d="M4 6h5M15 6h5M4 12h10M18 12h2M4 18h2M10 18h10" />
