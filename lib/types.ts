@@ -11,7 +11,7 @@ export type FileEntry = {
   content?: string;
 };
 
-export type ToolKind = "file" | "agent" | "reasoning" | "test" | "blueprint" | "web";
+export type ToolKind = "file" | "agent" | "reasoning" | "test" | "blueprint" | "web" | "ask";
 
 export type ToolEvent = {
   name: string;
@@ -44,6 +44,16 @@ export type AgentRun = {
   summary?: string;
 };
 
+export type AskPrompt = {
+  id: string;
+  question: string;
+  options?: string[];
+  allowFreeText?: boolean;
+  status: "pending" | "answered" | "cancelled";
+  answer?: string;
+  error?: string;
+};
+
 export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
@@ -51,6 +61,8 @@ export type ChatMessage = {
   reasoning?: ReasoningNode[];
   blueprint?: BlueprintTask[];
   agents?: AgentRun[];
+  asks?: AskPrompt[];
+  activity?: string;
   error?: string;
 };
 

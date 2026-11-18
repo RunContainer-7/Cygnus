@@ -13,6 +13,9 @@ export type OpenSourceFamily =
   | "Kimi"
   | "Solar"
   | "Muse"
+  | "Essential"
+  | "Reflection"
+  | "Cygnus"
   | "olmOCR"
   | "Granite";
 
@@ -50,6 +53,18 @@ export const OPEN_SOURCE_ENGINE_MODELS: OpenSourceModel[] = [
     tier: "low",
     recommended: true,
     badge: "Best fit",
+    tools: true,
+  },
+  {
+    id: "rnj-1-8b",
+    family: "Essential",
+    name: "Rnj-1 8B",
+    tag: "rnj-1:8b",
+    size: "5.1 GB",
+    minRamGb: 7,
+    note: "Essential AI's 8B code and STEM model with tools and a 32K context.",
+    tier: "balanced",
+    badge: "Apache 2.0",
     tools: true,
   },
   {
@@ -168,6 +183,30 @@ export const OPEN_SOURCE_ENGINE_MODELS: OpenSourceModel[] = [
     badge: "Chat only",
     tools: false,
     kind: "chat",
+  },
+  {
+    id: "muse-glimmer-30b",
+    family: "Muse",
+    name: "Muse Glimmer 30B",
+    tag: "muse-glimmer:latest",
+    size: "18 GB",
+    minRamGb: 24,
+    note: "Meta's 30B multimodal model with 128K context, vision, thinking and tools.",
+    tier: "max",
+    badge: "Multimodal",
+    tools: true,
+  },
+  {
+    id: "beam-1-501b",
+    family: "Reflection",
+    name: "Beam 1.0 501B",
+    tag: "hf.co/unsloth/Beam-1.0-501B-A23B-GGUF:UD-Q2_K_XL",
+    size: "~150 GB",
+    minRamGb: 192,
+    note: "Reflection's 501B-A23B MoE. Cluster-class local run; needs 192 GB+ RAM.",
+    tier: "max",
+    badge: "Cluster",
+    tools: true,
   },
   {
     id: "muse-spark-open",

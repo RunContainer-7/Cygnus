@@ -261,6 +261,36 @@ export const toolDefinitions = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "user_ask",
+      description:
+        "Pause and ask the user one focused question when a missing decision blocks progress. The interface waits for their answer, then continues this same task automatically. Use it only when you cannot make a safe, reasonable assumption. Do not use it for routine choices or confirmation.",
+      parameters: {
+        type: "object",
+        properties: {
+          question: {
+            type: "string",
+            description: "The single question the user needs to answer.",
+          },
+          options: {
+            type: "array",
+            maxItems: 4,
+            items: { type: "string" },
+            description:
+              "Optional short answers the user can click. Add a free-text field unless the options are exhaustive.",
+          },
+          allow_free_text: {
+            type: "boolean",
+            description: "Whether the user may type an answer instead of choosing an option. Defaults to true.",
+          },
+        },
+        required: ["question"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 export type ToolContext = {
@@ -270,6 +300,11 @@ export type ToolContext = {
   emit?: (event: Record<string, unknown>) => void;
   transcript?: string;
   state?: { nestedDepth: number };
+  ask?: (prompt: {
+    question: string;
+    options: string[];
+    allowFreeText: boolean;
+  }) => Promise<{ id: string; answer: string }>;
 };
 
 export type ToolResult = {
@@ -631,6 +666,41 @@ export async function runTool(
       };
     }
 
+    if (name === "user_ask") {
+      const question = typeof args.question === "string" ? args.question.trim() : "";
+      if (!question) {
+        return failure("user_ask requires a question.", "Missing question", "ask");
+      }
+      const rawOptions = Array.isArray(args.options) ? args.options : [];
+      const options = Array.from(
+        new Set(
+          rawOptions
+            .filter((option): option is string => typeof option === "string")
+            .map((option) => option.trim())
+            .filter(Boolean),
+        ),
+      ).slice(0, 4);
+      const allowFreeText = args.allow_free_text !== false;
+      if (!context.ask) {
+        return failure(
+          "The user cannot be asked from this context. Make a reasonable assumption and continue.",
+          "Can't reach the user",
+          "ask",
+        );
+      }
+      const result = await context.ask({
+        question: question.slice(0, 600),
+        options,
+        allowFreeText,
+      });
+      return {
+        ok: true,
+        message: `The user answered: ${result.answer}`,
+        display: "Asked the user",
+        kind: "ask",
+      };
+    }
+
     if (name === "test_app") {
       const focus = typeof args.focus === "string" ? args.focus.trim() : "";
       const result = await testProject(projectId, context.origin);
@@ -644,7 +714,7 @@ export async function runTool(
     }
 
     return failure(
-      `Unknown tool "${name}". Use write_file, read_file, list_files, search_files, fetch_url, delete_file, blueprint, spawn_agents, nested_reasoning or test_app.`,
+      `Unknown tool "${name}". Use write_file, read_file, list_files, search_files, fetch_url, delete_file, blueprint, spawn_agents, nested_reasoning, test_app or user_ask.`,
       `Unknown tool ${name}`,
     );
   } catch (error) {

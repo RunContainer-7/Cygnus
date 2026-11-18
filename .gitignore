@@ -11,6 +11,10 @@ out
 !.env.example
 workspaces/
 artifacts/
+training/data/
+training/cygnus05/cache/
+__pycache__/
+*.pyc
 next-env.d.ts
 tsconfig.tsbuildinfo
 desktop/main.bundle.cjs

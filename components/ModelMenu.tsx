@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Icon from "./Icon";
 import { useProvider } from "./ProviderContext";
 import { isLocalEndpoint, normalizeBaseUrl } from "@/lib/endpoints";
+import { CYGNUS_LOCAL_BASE_URL, isCygnusLocalProvider } from "@/lib/cygnus05Shared";
 import { HOSTED_BASE_URL } from "@/lib/hosted";
 import {
   MODEL_TIERS,
@@ -53,6 +54,7 @@ type TaskState = {
 };
 
 function accessForProvider(provider: { baseUrl: string; model: string }): MenuTab {
+  if (isCygnusLocalProvider(provider)) return "open";
   if (normalizeBaseUrl(provider.baseUrl) === HOSTED_BASE_URL || isDemo(provider)) return "open";
   if (
     OPEN_SOURCE_MODELS.some(
@@ -94,8 +96,9 @@ export default function ModelMenu({
   const counts = useMemo<Record<MenuTab, number>>(() => {
     return OPEN_SOURCE_MODELS.reduce(
       (result, entry) => {
-        if (entry.access === "hosted" || entry.access === "open") result.open += 1;
-        else if (entry.access === "local") result.local += 1;
+        if (entry.access === "hosted" || entry.access === "open" || entry.access === "cygnus") {
+          result.open += 1;
+        } else if (entry.access === "local") result.local += 1;
         return result;
       },
       { open: 0, local: 0, byok: 0 },
@@ -105,7 +108,7 @@ export default function ModelMenu({
   const visible = useMemo(() => {
     return OPEN_SOURCE_MODELS.filter((entry) =>
       access === "open"
-        ? entry.access === "hosted" || entry.access === "open"
+        ? entry.access === "hosted" || entry.access === "open" || entry.access === "cygnus"
         : entry.access === access,
     ).sort(
       (left, right) =>
@@ -207,6 +210,16 @@ export default function ModelMenu({
 
   async function choose(entry: OpenModel) {
     const token = ++choiceToken.current;
+    if (entry.access === "cygnus") {
+      chooseProvider({
+        baseUrl: CYGNUS_LOCAL_BASE_URL,
+        model: entry.model,
+        apiKey: "",
+        label: entry.name,
+      });
+      onClose();
+      return;
+    }
     const baseUrl = normalizeBaseUrl(entry.baseUrl);
     const apiKey = entry.access === "byok" ? loadProviderKey(baseUrl) : "";
 
@@ -385,17 +398,20 @@ export default function ModelMenu({
   if (typeof document === "undefined") return null;
 
   const hostedEntries = visible.filter((entry) => entry.access === "hosted");
+  const cygnusEntries = visible.filter((entry) => entry.access === "cygnus");
   const onDeviceEntries = visible.filter((entry) => entry.access === "open");
   const totalRamGb = engineStatus?.totalRamGb ?? 0;
 
   const renderRow = (entry: OpenModel) => {
     const active =
-      entry.access === "open"
-        ? isLocalEndpoint(provider.baseUrl) && entry.model === provider.model
-        : entry.access === "local"
-          ? normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl)
-          : entry.model === provider.model &&
-            normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl);
+      entry.access === "cygnus"
+        ? provider.baseUrl === CYGNUS_LOCAL_BASE_URL && entry.model === provider.model
+        : entry.access === "open"
+          ? isLocalEndpoint(provider.baseUrl) && entry.model === provider.model
+          : entry.access === "local"
+            ? normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl)
+            : entry.model === provider.model &&
+              normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl);
     const hasKey =
       entry.access === "byok" ? Boolean(loadProviderKey(entry.baseUrl)) : false;
     const capabilityBlocked =
@@ -419,7 +435,10 @@ export default function ModelMenu({
         ? `Needs about ${entry.minRamGb} GB of RAM`
         : undefined;
     const installed =
-      entry.access === "open" && Boolean(entry.tag) && installedTags.has(normalizeModelName(entry.tag!));
+      entry.access === "cygnus" ||
+      (entry.access === "open" &&
+        Boolean(entry.tag) &&
+        installedTags.has(normalizeModelName(entry.tag!)));
     const rowTask = task?.id === entry.id ? task : null;
 
     return (
@@ -499,6 +518,17 @@ export default function ModelMenu({
                 <>
                   <div className="mp-group-label">Free cloud · no key</div>
                   {hostedEntries.map(renderRow)}
+                </>
+              ) : null}
+
+              {cygnusEntries.length > 0 ? (
+                <>
+                  <div className="mp-group-label">Cygnus Labs · experimental</div>
+                  {cygnusEntries.map(renderRow)}
+                  <p className="mp-engine-note">
+                    Trained from scratch on this machine. Chat only, not an app builder, and not
+                    recommended for real work.
+                  </p>
                 </>
               ) : null}
 
@@ -725,7 +755,9 @@ function ModelRow({
       ? entry.note
       : entry.access === "open"
         ? `${entry.family ?? "Open"} · ${entry.size ?? "local"} · ${entry.note}`
-        : `${entry.provider} · ${entry.note}`;
+        : entry.access === "cygnus"
+          ? `${entry.family ?? "Cygnus"} · ${entry.size ?? "local"} · ${entry.note}`
+          : `${entry.provider} · ${entry.note}`;
 
   return (
     <button
@@ -765,6 +797,9 @@ function ModelRow({
         ) : null}
         {!busy && !blocked && entry.access === "open" && !installed ? (
           <span className="mp-key-hint">Download</span>
+        ) : null}
+        {!busy && !blocked && entry.access === "cygnus" ? (
+          <span className="mp-key-hint">Chat only</span>
         ) : null}
         {!busy && !blocked && entry.access === "local" ? (
           <span className="mp-key-hint">Connect</span>

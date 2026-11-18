@@ -15,11 +15,11 @@ Open http://localhost:3000. It starts on **Nemotron 3.5 Lightning**, a hosted op
 
 ## Download for Windows
 
-The latest published installer release is **[v0.1.3](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.3)**.
+The latest published installer release is **[v0.1.5](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.5)**.
 
-- [Cygnus-Setup-0.1.3.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.3/Cygnus-Setup-0.1.3.exe) — installer with Start Menu and desktop shortcuts.
-- [Cygnus-Portable-0.1.3.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.3/Cygnus-Portable-0.1.3.exe) — portable build that runs without installing.
-- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.3/SHA256SUMS.txt) — checksums for both downloads.
+- [Cygnus-Setup-0.1.5.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.5/Cygnus-Setup-0.1.5.exe) — installer with Start Menu and desktop shortcuts.
+- [Cygnus-Portable-0.1.5.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.5/Cygnus-Portable-0.1.5.exe) — portable build that runs without installing.
+- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.5/SHA256SUMS.txt) — checksums for both downloads.
 
 Installed v0.1.1 and later copies check GitHub Releases on launch and show an in-app update button; updates download and restart in place. Portable builds show a download link instead. The earlier v0.1.0 installers do not include the updater, so updating from v0.1.0 requires this one manual install.
 
@@ -36,8 +36,8 @@ npm run dist
 
 That produces the installers plus update metadata in `release/`:
 
-- `Cygnus-Setup-0.1.4.exe` — a normal setup wizard with Start menu and desktop shortcuts.
-- `Cygnus-Portable-0.1.4.exe` — runs without installing anything.
+- `Cygnus-Setup-0.1.5.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.1.5.exe` — runs without installing anything.
 - `latest.yml` — the update feed consumed by installed copies.
 
 Rebuild the installer after changes to package a new version.
@@ -50,7 +50,7 @@ Cygnus has three lanes in the composer picker:
 
 | Lane | Key | What it is |
 | --- | --- | --- |
-| **Open source** | None | Fourteen open-weight families run on this PC's CPU/GPU, plus seven free cloud models. On-device code and prompts stay local. |
+| **Open source** | None | Seventeen open-weight models run on this PC's CPU/GPU, plus seven free cloud models and the experimental Cygnus 0.5. On-device code and prompts stay local. |
 | **Local** | None | Connect Ollama or LM Studio only. Uses the model already loaded there. Private, offline-capable. |
 | **BYOK** | Your key | Paste one key; Cygnus detects the provider and picks a coding model. No model list to maintain. |
 
@@ -74,7 +74,7 @@ Claude and Grok are not in the no-key lane: the gateway requires a signed-in key
 
 ### Agent tools
 
-Every model, local or cloud, gets the same tool set. The agent prints a one-line narration before each call, shows the tool result, and keeps iterating (up to 24 rounds per message).
+Every tool-capable model gets the same tool set. The interface shows a compact activity line while a tool runs, then a result chip; the assistant's own reply stays separate from tool narration. The agent keeps iterating (up to 24 rounds per message). Cygnus 0.5 is the exception: it is an experimental chat-only model and does not call tools.
 
 | Tool | What it does |
 | --- | --- |
@@ -84,6 +84,7 @@ Every model, local or cloud, gets the same tool set. The agent prints a one-line
 | `nested_reasoning` | Adds a visible layer of reasoning inside reasoning. There is no fixed nesting limit in the transcript; each call is one tool round. |
 | `test_app` | Checks index.html, local asset references, JS syntax, CSS blocks, placeholders, and the preview route. |
 | `fetch_url` | Reads a specific public documentation page. Private and local addresses are blocked. |
+| `user_ask` | Pauses the chat and asks one focused question. The same stream resumes automatically after the user answers. |
 
 Web research sends the query to DuckDuckGo and reads the top public pages. Tool calls are shown as chips in the chat and in the Console panel.
 
@@ -94,6 +95,7 @@ Pick one of these in **Open source → On this PC**. Cygnus installs a standalon
 | Family | Model | Tag | Download | Minimum RAM |
 | --- | --- | --- | --- | --- |
 | Qwen | Qwen3 4B | `qwen3:4b` | 2.5 GB | 6 GB |
+| Essential | Rnj-1 8B | `rnj-1:8b` | 5.1 GB | 7 GB |
 | DeepSeek | DeepSeek R1 7B | `deepseek-r1:7b` | 4.7 GB | 7 GB |
 | GLM | GLM 4.7 Flash | `glm-4.7-flash:q4_K_M` | 19 GB | 24 GB |
 | MiMo | MiMo 2.6 9B | `mimo-v2.6:9b` | 6.6 GB | 10 GB |
@@ -104,11 +106,27 @@ Pick one of these in **Open source → On this PC**. Cygnus installs a standalon
 | OpenAI | GPT-OSS 20B | `gpt-oss:20b` | 14 GB | 16 GB |
 | Kimi | Kimi Linear 48B | `hf.co/DhruvalLabs/Kimi-Linear-48B-A3B-Instruct-GGUF:Q4_K_M` | 27.7 GB | 32 GB |
 | Solar | Solar 10.7B | `solar:10.7b` | 6.1 GB | 8 GB |
+| Reflection | Beam 1.0 501B | `hf.co/unsloth/Beam-1.0-501B-A23B-GGUF:UD-Q2_K_XL` | ~150 GB | 192 GB |
+| Muse | Muse Glimmer 30B | `muse-glimmer:latest` | 18 GB | 24 GB |
 | Muse | Muse Spark Open | `hf.co/ggml-org/Muse-Spark-Open-816B-A42B-GGUF:Q2_K` | 304 GB | 384 GB |
 | olmOCR | olmOCR 2 7B | `hf.co/lmstudio-community/olmOCR-2-7B-1025-GGUF:Q4_K_M` | 5.7 GB | 8 GB |
 | Granite | Granite 4 Micro | `granite4:micro` | 2.1 GB | 4 GB |
 
-Agent models are tool-capable. Solar 10.7B is the 2023 open-weight checkpoint: chat-only, 4K context, and no native tool calling. Upstage's tool-capable Solar Pro 3/4 are hosted API models, not this checkpoint. olmOCR is OCR-only, so both are listed but disabled for app builds. Models that exceed the machine's RAM are also disabled. Llama is open-weight under Meta's community license, not OSI-approved; Solar's instruct weights are non-commercial; Muse Spark uses the Muse Model License; the rest are Apache-2.0 or MIT. The engine and model store live in the app's user-data folder; delete a model to reclaim the disk space.
+Agent models are tool-capable. Solar 10.7B is the 2023 open-weight checkpoint: chat-only, 4K context, and no native tool calling. Upstage's tool-capable Solar Pro 3/4 are hosted API models, not this checkpoint. olmOCR is OCR-only, so both are listed but disabled for app builds. Models that exceed the machine's RAM are also disabled. Llama is open-weight under Meta's community license, not OSI-approved; Solar's instruct weights are non-commercial; Muse Spark uses the Muse Model License; RNJ-1, Muse Glimmer and Beam are Apache-2.0; the rest are Apache-2.0 or MIT. The engine and model store live in the app's user-data folder; delete a model to reclaim the disk space.
+
+### Cygnus Labs · experimental
+
+Cygnus 0.5 is a from-scratch model, not a downloaded checkpoint. It started from random weights and was trained on this machine with `training/cygnus05/train.py`: a 4-layer, 256-wide, word-level transformer with **5.29M parameters** and a 128-token context. Pretraining used TinyStories plus Shakespeare; a short SFT pass taught the `User:` / `Cygnus:` chat format.
+
+Pick **Cygnus 0.5** under **Cygnus Labs** in the composer picker. It runs in the local server, streams from `public/cygnus05`, needs no key, and never leaves the machine. It is **chat only**: it cannot edit files, call tools, browse, or remember long conversations. It is slow on CPU and often wrong. It is marked **not recommended** and exists to make the from-scratch path visible and testable, not to build real apps.
+
+To retrain it, put the corpora in `training/data` and run:
+
+```bash
+python training/cygnus05/train.py --steps 1400 --sft-steps 220
+```
+
+The script writes `public/cygnus05/config.json`, `vocab.json` and `model.bin`.
 
 ### BYOK and local endpoints
 

@@ -1,3 +1,4 @@
+import { CYGNUS_LOCAL_BASE_URL, CYGNUS_LOCAL_LABEL } from "./cygnus05Shared";
 import { isLocalEndpoint, normalizeBaseUrl } from "./endpoints";
 import { HOSTED_BASE_URL, HOSTED_MODELS, findHostedModel } from "./hosted";
 import type { ProviderConfig } from "./types";
@@ -231,6 +232,7 @@ export function isHosted(provider: ProviderConfig): boolean {
 
 export function isKeylessProvider(provider: ProviderConfig): boolean {
   if (isDemo(provider) || isHosted(provider)) return true;
+  if (provider.baseUrl === CYGNUS_LOCAL_BASE_URL) return true;
   if (isLocalEndpoint(provider.baseUrl)) return true;
   const endpoint = normalizeBaseUrl(provider.baseUrl);
   const preset = PRESETS.find(
@@ -241,6 +243,7 @@ export function isKeylessProvider(provider: ProviderConfig): boolean {
 
 export function providerLabel(provider: ProviderConfig): string {
   if (isDemo(provider)) return "Offline demo";
+  if (provider.baseUrl === CYGNUS_LOCAL_BASE_URL) return CYGNUS_LOCAL_LABEL;
   if (isHosted(provider)) {
     return findHostedModel(provider.model)?.name ?? "Cygnus Hosted";
   }

@@ -1,3 +1,4 @@
+import { CYGNUS_LOCAL_BASE_URL } from "./cygnus05Shared";
 import { HOSTED_BASE_URL } from "./hosted";
 
 const LOCAL_HOST =
@@ -13,7 +14,9 @@ const LOCAL_HOST =
 export function normalizeBaseUrl(input: string): string {
   let value = (input ?? "").trim();
   if (!value) return "";
-  if (value === "demo" || value === HOSTED_BASE_URL) return value;
+  if (value === "demo" || value === HOSTED_BASE_URL || value === CYGNUS_LOCAL_BASE_URL) {
+    return value;
+  }
 
   if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) {
     value = `${LOCAL_HOST.test(value) ? "http" : "https"}://${value}`;
@@ -26,6 +29,7 @@ export function normalizeBaseUrl(input: string): string {
 
 export function isLocalEndpoint(baseUrl: string): boolean {
   if (!baseUrl) return false;
+  if (baseUrl === CYGNUS_LOCAL_BASE_URL) return true;
   try {
     const url = new URL(normalizeBaseUrl(baseUrl));
     return LOCAL_HOST.test(url.hostname);
@@ -36,6 +40,7 @@ export function isLocalEndpoint(baseUrl: string): boolean {
 
 export function endpointHost(baseUrl: string): string {
   if (baseUrl === HOSTED_BASE_URL) return "Cygnus Hosted";
+  if (baseUrl === CYGNUS_LOCAL_BASE_URL) return "Cygnus 0.5 · local";
   try {
     return new URL(normalizeBaseUrl(baseUrl)).host;
   } catch {

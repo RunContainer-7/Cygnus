@@ -123,6 +123,7 @@ function startServer(port) {
       PORT: String(port),
       HOSTNAME: "127.0.0.1",
       CYGNUS_WORKSPACE_DIR: workspaces,
+      CYGNUS_APP_ROOT: serverRoot(),
       NEXT_TELEMETRY_DISABLED: "1",
     },
     stdio: ["ignore", "pipe", "pipe"],

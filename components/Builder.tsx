@@ -7,8 +7,10 @@ import ModelMenu from "@/components/ModelMenu";
 import { useProvider } from "@/components/ProviderContext";
 import { endpointHost, isLocalEndpoint } from "@/lib/endpoints";
 import { isDemo, isHosted, isKeylessProvider, providerLabel } from "@/lib/providers";
+import { isCygnusLocalProvider } from "@/lib/cygnus05Shared";
 import type {
   AgentRun,
+  AskPrompt,
   BlueprintTask,
   ChatMessage,
   ProjectData,
@@ -157,6 +159,13 @@ export default function Builder({
       let buffer = "";
 
       const apply = (event: Record<string, unknown>) => {
+        if (event.type === "status" && typeof event.text === "string") {
+          const activity = event.text;
+          setMessages((previous) =>
+            updateLast(previous, (message) => ({ ...message, activity })),
+          );
+          return;
+        }
         if (event.type === "text" && typeof event.value === "string") {
           const delta = event.value;
           setMessages((previous) =>
@@ -241,10 +250,37 @@ export default function Builder({
           );
           return;
         }
+        if (event.type === "ask" && typeof event.id === "string" && typeof event.question === "string") {
+          const ask: AskPrompt = {
+            id: event.id,
+            question: event.question,
+            options: Array.isArray(event.options)
+              ? event.options.filter((option): option is string => typeof option === "string")
+              : undefined,
+            allowFreeText: event.allowFreeText !== false,
+            status: "pending",
+          };
+          setMessages((previous) =>
+            updateLast(previous, (message) => {
+              const asks = [...(message.asks ?? [])];
+              const index = asks.findIndex((entry) => entry.id === ask.id);
+              if (index >= 0) asks[index] = ask;
+              else asks.push(ask);
+              return { ...message, asks };
+            }),
+          );
+          return;
+        }
         if (event.type === "error") {
           const detail = String(event.message ?? "Something went wrong.");
           setMessages((previous) =>
-            updateLast(previous, (message) => ({ ...message, error: detail })),
+            updateLast(previous, (message) => ({
+              ...message,
+              error: detail,
+              asks: message.asks?.map((ask) =>
+                ask.status === "pending" ? { ...ask, status: "cancelled" as const } : ask,
+              ),
+            })),
           );
           return;
         }
@@ -294,6 +330,14 @@ export default function Builder({
         );
       }
     } finally {
+      setMessages((previous) =>
+        updateLast(previous, (message) => ({
+          ...message,
+          asks: message.asks?.map((ask) =>
+            ask.status === "pending" ? { ...ask, status: "cancelled" as const } : ask,
+          ),
+        })),
+      );
       setStreaming(false);
       abortRef.current = null;
     }
@@ -319,8 +363,49 @@ export default function Builder({
     }
   }
 
+  async function answerAsk(id: string, answer: string) {
+    const text = answer.trim();
+    if (!text) return;
+
+    setMessages((previous) =>
+      updateLast(previous, (message) => ({
+        ...message,
+        asks: (message.asks ?? []).map((ask) =>
+          ask.id === id
+            ? { ...ask, status: "answered" as const, answer: text, error: undefined }
+            : ask,
+        ),
+      })),
+    );
+
+    try {
+      const response = await fetch("/api/chat/answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, answer: text }),
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error ?? `Could not send that answer (${response.status}).`);
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Could not send that answer.";
+      setMessages((previous) =>
+        updateLast(previous, (message) => ({
+          ...message,
+          asks: (message.asks ?? []).map((ask) =>
+            ask.id === id
+              ? { ...ask, status: "pending" as const, answer: undefined, error: detail }
+              : ask,
+          ),
+        })),
+      );
+    }
+  }
+
   const files = project?.files ?? [];
   const busy = streaming;
+  const cygnusLab = isCygnusLocalProvider(provider);
   const activeCode = files.find((file) => file.path === codeFile) ?? files[0];
   const consoleEntries = messages.flatMap((message, messageIndex) => [
     ...(message.tools ?? []).map((tool) => ({
@@ -432,8 +517,12 @@ export default function Builder({
                     <circle cx="16" cy="27" r="1.3" />
                   </g>
                 </svg>
-                <h2>What are we building?</h2>
-                <p>Describe it below. Changes show up in the preview.</p>
+                <h2>{cygnusLab ? "Talk to Cygnus 0.5" : "What are we building?"}</h2>
+                <p>
+                  {cygnusLab
+                    ? "A 5.3M-parameter model trained from scratch on this PC. Chat only, experimental, and not recommended for real work."
+                    : "Describe it below. Changes show up in the preview."}
+                </p>
                 <div className="example-chips">
                   {[
                     "A landing page for a coffee subscription",
@@ -458,6 +547,12 @@ export default function Builder({
                   {message.blueprint && message.blueprint.length > 0 ? (
                     <BlueprintCard tasks={message.blueprint} />
                   ) : null}
+                  {busy && index === messages.length - 1 && message.activity ? (
+                    <div className="chat-status" role="status">
+                      <span className="chat-status-dot" aria-hidden="true" />
+                      <span>{message.activity}</span>
+                    </div>
+                  ) : null}
                   {message.reasoning && message.reasoning.length > 0 ? (
                     <ReasoningBlock nodes={message.reasoning} />
                   ) : null}
@@ -475,12 +570,31 @@ export default function Builder({
                       </button>
                     </div>
                   ) : null}
+                  {message.asks?.map((ask) => (
+                    <AskCard
+                      key={ask.id}
+                      ask={ask}
+                      onAnswer={(answer) => void answerAsk(ask.id, answer)}
+                    />
+                  ))}
                   {message.agents && message.agents.length > 0 ? (
                     <AgentRuns runs={message.agents} />
                   ) : null}
                   {message.tools && message.tools.length > 0 ? (
-                    <div className="tool-list">
-                      {message.tools.map((tool, toolIndex) => (
+                    <details
+                      className="tool-list"
+                      open={
+                        busy && index === messages.length - 1 ? true : !message.content ? true : undefined
+                      }
+                    >
+                      <summary>
+                        <span>Activity</span>
+                        <em>
+                          {message.tools.length} step{message.tools.length === 1 ? "" : "s"}
+                        </em>
+                      </summary>
+                      <div className="tool-chips">
+                        {message.tools.map((tool, toolIndex) => (
                         <button
                           type="button"
                           className={`tool-chip ${tool.ok ? "ok" : "warn"}`}
@@ -499,21 +613,23 @@ export default function Builder({
                           {tool.path ? <code>{tool.path}</code> : null}
                         </button>
                       ))}
-                    </div>
+                      </div>
+                    </details>
                   ) : null}
                   {message.error ? (
                     <div className="error-card">
                       <strong>That didn&apos;t work</strong>
                       <p>{message.error}</p>
                       <p className="hint">
-                        Check the model settings, the API key, and that the provider supports tool
-                        calling. On-device models download on first use; local servers must be
-                        running.
+                        {cygnusLab
+                          ? "Cygnus 0.5 is an experimental local model. Try a shorter prompt or switch to a tool-capable model."
+                          : "Check the model settings, the API key, and that the provider supports tool calling. On-device models download on first use; local servers must be running."}
                       </p>
                     </div>
                   ) : null}
                   {!message.content &&
                   !message.error &&
+                  !(message.asks?.some((ask) => ask.status === "pending")) &&
                   busy &&
                   index === messages.length - 1 ? (
                     <div className="typing" aria-label="Cygnus is working">
@@ -546,7 +662,11 @@ export default function Builder({
                 }
               }}
               rows={2}
-              placeholder="Describe a change, or ask for something new…"
+              placeholder={
+                cygnusLab
+                  ? "Chat with Cygnus 0.5 (experimental)…"
+                  : "Describe a change, or ask for something new…"
+              }
               aria-label="Message Cygnus"
             />
             <div className="composer-row">
@@ -647,7 +767,9 @@ export default function Builder({
           </div>
           {panel === "preview" ? (
             <div className={`preview-frame-wrap ${device}`}>
-              {busy ? <div className="preview-building">Building…</div> : null}
+              {busy ? (
+                <div className="preview-building">{cygnusLab ? "Chatting…" : "Building…"}</div>
+              ) : null}
               <iframe
                 key={release}
                 src={`/api/preview/${projectId}/index.html?v=${release}`}
@@ -878,7 +1000,9 @@ export default function Builder({
               ? "Demo · no key"
               : isHosted(provider)
                 ? "Hosted · no key"
-                : isLocalEndpoint(provider.baseUrl)
+                : isCygnusLocalProvider(provider)
+                  ? "On-device · experimental"
+                  : isLocalEndpoint(provider.baseUrl)
                   ? "Local · no key"
                   : "Free · no key"
             : "Cloud · key"}
@@ -894,6 +1018,75 @@ export default function Builder({
           setDrawerFile(null);
         }}
       />
+    </div>
+  );
+}
+
+function AskCard({
+  ask,
+  onAnswer,
+}: {
+  ask: AskPrompt;
+  onAnswer: (answer: string) => void;
+}) {
+  const [value, setValue] = useState("");
+  const pending = ask.status === "pending";
+
+  function submit(answer: string) {
+    const text = answer.trim();
+    if (!text || !pending) return;
+    onAnswer(text);
+  }
+
+  return (
+    <div className={`ask-card ${ask.status}`}>
+      <div className="ask-head">
+        <span>Needs your call</span>
+        <em>{pending ? "Waiting" : ask.status === "answered" ? "Answered" : "Cancelled"}</em>
+      </div>
+      <p className="ask-question">{ask.question}</p>
+      {ask.options && ask.options.length > 0 ? (
+        <div className="ask-options">
+          {ask.options.map((option) => (
+            <button
+              key={option}
+              type="button"
+              disabled={!pending}
+              onClick={() => submit(option)}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {pending && ask.allowFreeText !== false ? (
+        <form
+          className="ask-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit(value);
+            setValue("");
+          }}
+        >
+          <input
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            placeholder="Type your answer…"
+            aria-label="Your answer"
+            autoFocus
+          />
+          <button type="submit" disabled={!value.trim()}>
+            Send
+          </button>
+        </form>
+      ) : null}
+      {ask.status === "answered" && ask.answer ? (
+        <p className="ask-answer">You answered: {ask.answer}</p>
+      ) : null}
+      {ask.status === "cancelled" ? (
+        <p className="ask-answer">Question cancelled.</p>
+      ) : null}
+      {ask.error ? <p className="ask-error">{ask.error}</p> : null}
     </div>
   );
 }

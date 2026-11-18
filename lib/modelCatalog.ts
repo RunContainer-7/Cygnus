@@ -4,6 +4,11 @@ import {
   type HostedTier,
 } from "./hosted";
 import {
+  CYGNUS_LOCAL_BASE_URL,
+  CYGNUS_LOCAL_LABEL,
+  CYGNUS_LOCAL_MODEL,
+} from "./cygnus05Shared";
+import {
   OPEN_SOURCE_BASE_URL,
   OPEN_SOURCE_ENGINE_MODELS,
   type OpenSourceFamily,
@@ -11,7 +16,7 @@ import {
 } from "./openSource";
 
 export type ModelTier = HostedTier;
-export type ModelAccess = "hosted" | "open" | "local" | "byok";
+export type ModelAccess = "hosted" | "open" | "cygnus" | "local" | "byok";
 
 export type OpenModel = {
   id: string;
@@ -29,6 +34,7 @@ export type OpenModel = {
   size?: string;
   minRamGb?: number;
   tag?: string;
+  experimental?: boolean;
 };
 
 export const MODEL_TIERS: Array<{ id: ModelTier; label: string; hint: string }> = [
@@ -62,6 +68,25 @@ const HOSTED_ENTRIES: OpenModel[] = HOSTED_MODELS.map((entry) => ({
   note: entry.note,
 }));
 
+const CYGNUS_ENTRIES: OpenModel[] = [
+  {
+    id: "cygnus-0.5",
+    name: CYGNUS_LOCAL_LABEL,
+    provider: "Cygnus Labs",
+    baseUrl: CYGNUS_LOCAL_BASE_URL,
+    model: CYGNUS_LOCAL_MODEL,
+    tier: "low",
+    access: "cygnus",
+    badge: "Not recommended",
+    note: "5.3M parameters trained from random weights on this PC. Chat only; not recommended for real work.",
+    family: "Cygnus",
+    kind: "chat",
+    size: "21 MB",
+    minRamGb: 1,
+    experimental: true,
+  },
+];
+
 const ON_DEVICE_ENTRIES: OpenModel[] = OPEN_SOURCE_ENGINE_MODELS.map((entry) => ({
   id: `open-${entry.id}`,
   name: entry.name,
@@ -88,6 +113,7 @@ const ON_DEVICE_ENTRIES: OpenModel[] = OPEN_SOURCE_ENGINE_MODELS.map((entry) => 
  */
 export const OPEN_SOURCE_MODELS: OpenModel[] = [
   ...HOSTED_ENTRIES,
+  ...CYGNUS_ENTRIES,
   ...ON_DEVICE_ENTRIES,
   {
     id: "local-ollama",

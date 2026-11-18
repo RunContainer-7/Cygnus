@@ -1,12 +1,16 @@
 import { NextRequest } from "next/server";
 import { runDemo } from "@/lib/demo";
+import { streamCygnusChat, type CygnusChatTurn } from "@/lib/cygnus05";
+import { isCygnusLocalProvider } from "@/lib/cygnus05Shared";
 import { normalizeBaseUrl } from "@/lib/endpoints";
 import { streamModelTurn, type WireMessage } from "@/lib/llm";
+import { openAsk } from "@/lib/pendingAsks";
 import { isDemo } from "@/lib/providers";
 import { buildSystemPrompt } from "@/lib/systemPrompt";
 import { runTool, toolDefinitions } from "@/lib/tools";
 import type {
   AgentRun,
+  AskPrompt,
   BlueprintTask,
   ProviderConfig,
   ReasoningNode,
@@ -52,34 +56,33 @@ function agentLabel(value: string): string {
   return value;
 }
 
-function narrateToolCall(name: string, rawArguments: string): string {
+function toolStatus(name: string, rawArguments: string): string {
   const args = parseToolArguments(rawArguments);
   if (name === "write_file") {
     const filePath = typeof args.path === "string" ? args.path : "";
-    return filePath ? `I'll write ${filePath} with write_file.` : "I'll write a file with write_file.";
+    return filePath ? `Writing ${filePath}` : "Writing a file";
   }
   if (name === "read_file") {
     const filePath = typeof args.path === "string" ? args.path : "";
-    return filePath ? `I'll read ${filePath} with read_file.` : "I'll read a file with read_file.";
+    return filePath ? `Reading ${filePath}` : "Reading a file";
   }
-  if (name === "list_files") return "I'll check the project files with list_files.";
+  if (name === "list_files") return "Checking the project files";
   if (name === "search_files") {
     const query = typeof args.query === "string" ? args.query : "";
-    return query
-      ? `I'll search the project for "${query}" with search_files.`
-      : "I'll search the project with search_files.";
+    return query ? `Searching for "${query.slice(0, 60)}"` : "Searching the project";
   }
   if (name === "fetch_url") {
     const url = typeof args.url === "string" ? args.url : "";
-    return url ? `I'll read ${url} with fetch_url.` : "I'll read a web page with fetch_url.";
+    return url ? `Reading ${url.slice(0, 80)}` : "Reading a web page";
   }
   if (name === "delete_file") {
     const filePath = typeof args.path === "string" ? args.path : "";
-    return filePath ? `I'll remove ${filePath} with delete_file.` : "I'll remove a file with delete_file.";
+    return filePath ? `Removing ${filePath}` : "Removing a file";
   }
-  if (name === "blueprint") return "I'll update the blueprint.";
-  if (name === "test_app") return "I'll test the app with test_app.";
-  if (name === "nested_reasoning") return "I'm going one layer deeper with nested_reasoning.";
+  if (name === "blueprint") return "Updating the plan";
+  if (name === "test_app") return "Testing the app";
+  if (name === "nested_reasoning") return "Thinking deeper";
+  if (name === "user_ask") return "Waiting for your answer";
   if (name === "spawn_agents") {
     const agents = Array.isArray(args.agents) ? args.agents : [];
     const names = agents
@@ -89,11 +92,9 @@ function narrateToolCall(name: string, rawArguments: string): string {
         return typeof type === "string" ? agentLabel(type) : "";
       })
       .filter(Boolean);
-    return names.length > 0
-      ? `I'll bring in ${names.join(" and ")} with spawn_agents.`
-      : "I'll bring in a sub-agent with spawn_agents.";
+    return names.length > 0 ? `Bringing in ${names.join(" and ")}` : "Bringing in a sub-agent";
   }
-  return `I'll use ${name}.`;
+  return `Running ${name}`;
 }
 
 function wireTranscript(wire: WireMessage[]): string {
@@ -180,6 +181,40 @@ export async function POST(request: NextRequest) {
           return;
         }
 
+        if (isCygnusLocalProvider(normalizedProvider)) {
+          const turns: CygnusChatTurn[] = [
+            ...history
+              .slice(-4)
+              .filter((entry) => entry.content.trim().length > 0)
+              .map((entry) => ({
+                role: entry.role,
+                content: entry.content,
+              })),
+            { role: "user" as const, content: userMessage },
+          ];
+          send({ type: "status", text: "Cygnus 0.5 is thinking locally" });
+          let streamed = "";
+          const result = await streamCygnusChat({
+            turns,
+            signal: request.signal,
+            onText: (delta) => {
+              streamed += delta;
+              send({ type: "text", value: delta });
+            },
+          });
+          if (request.signal.aborted) return;
+          const content = result.text || streamed.trim();
+          if (!content) {
+            throw new Error(
+              "Cygnus 0.5 did not produce a reply. This experimental model is still learning; try a shorter prompt or a tool-capable model.",
+            );
+          }
+          await appendChat(projectId, { role: "assistant", content });
+          const files = await listFiles(projectId);
+          send({ type: "done", files: files.length, truncated: false, rounds: 0 });
+          return;
+        }
+
         const meta = await readMeta(projectId);
         const files = await listFiles(projectId);
         const filesWithContent = await Promise.all(
@@ -203,6 +238,7 @@ export async function POST(request: NextRequest) {
 
         let assistantText = "";
         const toolsUsed: ToolEvent[] = [];
+        const asked: AskPrompt[] = [];
         const assistantReasoning: ReasoningNode[] = [];
         const agentRuns: AgentRun[] = [];
         const toolState = { nestedDepth: 0 };
@@ -221,6 +257,7 @@ export async function POST(request: NextRequest) {
         };
 
         for (let step = 0; step < MAX_STEPS; step += 1) {
+          send({ type: "status", text: step === 0 ? "Thinking" : "Reviewing the result" });
           const turn = await streamModelTurn({
             provider: normalizedProvider,
             messages: wire,
@@ -246,20 +283,7 @@ export async function POST(request: NextRequest) {
           });
 
           for (const call of turn.toolCalls) {
-            const narration = narrateToolCall(call.name, call.arguments);
-            if (narration) {
-              const separator = !assistantText
-                ? ""
-                : assistantText.endsWith("\n\n")
-                  ? ""
-                  : assistantText.endsWith("\n")
-                    ? "\n"
-                    : "\n\n";
-              const note = `${separator}${narration}\n\n`;
-              assistantText += note;
-              send({ type: "text", value: note });
-            }
-
+            send({ type: "status", text: toolStatus(call.name, call.arguments) });
             const result = await runTool(projectId, call.name, call.arguments, {
               provider: normalizedProvider,
               origin: request.nextUrl.origin,
@@ -267,6 +291,23 @@ export async function POST(request: NextRequest) {
               emit: send,
               transcript: wireTranscript(wire),
               state: toolState,
+              ask: async ({ question, options, allowFreeText }) => {
+                const { id, promise } = openAsk(request.signal);
+                send({ type: "ask", id, question, options, allowFreeText });
+                const answer = await promise;
+                const cancelled =
+                  answer.startsWith("The user cancelled") ||
+                  answer.startsWith("The user did not answer");
+                asked.push({
+                  id,
+                  question,
+                  options,
+                  allowFreeText,
+                  status: cancelled ? "cancelled" : "answered",
+                  answer,
+                });
+                return { id, answer };
+              },
             });
 
             if (result.reasoning) {
@@ -314,6 +355,7 @@ export async function POST(request: NextRequest) {
           ...(assistantReasoning.length > 0 ? { reasoning: assistantReasoning } : {}),
           ...(blueprint ? { blueprint } : {}),
           ...(agentRuns.length > 0 ? { agents: agentRuns } : {}),
+          ...(asked.length > 0 ? { asks: asked } : {}),
         });
         send({
           type: "done",
