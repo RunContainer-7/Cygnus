@@ -32,6 +32,8 @@ DATA_DIR = ROOT / "training" / "data"
 CACHE_DIR = ROOT / "training" / "cygnus05" / "cache"
 OUT_DIR = ROOT / "public" / "cygnus05"
 SFT_PATH = ROOT / "training" / "cygnus05" / "sft.jsonl"
+DOMAIN_PATH = ROOT / "training" / "cygnus05" / "cygnus_corpus.txt"
+TOOL_SFT_PATH = ROOT / "training" / "cygnus05" / "sft_tools.jsonl"
 
 SPECIALS = ["<pad>", "<unk>", "<bos>", "<eos>"]
 REQUIRED_TOKENS = ["User", ":", "Cygnus", "\n", " "]
@@ -79,6 +81,10 @@ def load_corpus(chars: int) -> str:
         pieces.append(tinystories.read_text(encoding="utf-8", errors="replace")[:chars])
     if shakespeare.exists():
         pieces.append(shakespeare.read_text(encoding="utf-8", errors="replace"))
+    # Cygnus's own domain corpus: app building, tool shapes, and the voice the
+    # model should imitate. Small but targeted, and written for this app.
+    if DOMAIN_PATH.exists():
+        pieces.append(DOMAIN_PATH.read_text(encoding="utf-8", errors="replace"))
     if not pieces:
         raise SystemExit(
             "No corpus found. Put TinyStoriesV2-GPT4-valid.txt in training/data and "
@@ -339,6 +345,20 @@ def make_sft_examples() -> list[dict[str, str]]:
                 f"{name}, you do not have to be great today. You only have to be here. "
                 "Take a breath, drink some water, and try the next small thing.",
             )
+
+    if TOOL_SFT_PATH.exists():
+        for line in TOOL_SFT_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            prompt = str(row.get("prompt", "")).strip()
+            response = str(row.get("response", "")).strip()
+            if prompt and response:
+                add(prompt, response)
 
     rng.shuffle(examples)
     return examples
@@ -603,14 +623,14 @@ def export_model(
 
     export_config = {
         **config,
-        "name": "Cygnus 0.5",
+        "name": "Cygnus 0.5.1",
         "architecture": "word-level decoder-only transformer",
         "tokenizer": "regex word/punctuation tokens",
         "context": int(config["context"]),
         "vocab_size": len(vocab),
         "tensors": manifest,
         "metrics": strip_non_finite(metrics),
-        "note": "Experimental model trained from random weights on this machine. Chat only; not recommended for real work.",
+        "note": "Experimental model trained from random weights on this machine with a Cygnus-specific corpus and tool-call examples. Not recommended for real work.",
     }
     (OUT_DIR / "config.json").write_text(
         json.dumps(export_config, indent=2),
@@ -711,7 +731,7 @@ def main() -> None:
             },
         )
         for prompt, sample in samples.items():
-            print(f"\n{prompt}\n→ {sample[:400]}")
+            print(f"\n{prompt}\n-> {sample[:400]}")
         return
 
     optimizer = torch.optim.AdamW(
@@ -788,7 +808,7 @@ def main() -> None:
     samples = {}
     for prompt in ["Hello", "What is your name?", "Tell me a story about a cat.", "Build a website for a bakery."]:
         samples[prompt] = generate(model, f"User: {prompt}\nCygnus:", stoi, itos)
-        print(f"\n{prompt}\n→ {samples[prompt][:500]}")
+        print(f"\n{prompt}\n-> {samples[prompt][:500]}")
 
     export_model(
         model,

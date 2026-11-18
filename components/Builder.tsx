@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import FileDrawer from "@/components/FileDrawer";
 import ModeMenu from "@/components/ModeMenu";
 import ModelMenu from "@/components/ModelMenu";
+import PublishPanel from "@/components/PublishPanel";
 import { useProvider } from "@/components/ProviderContext";
 import { endpointHost, isLocalEndpoint } from "@/lib/endpoints";
 import { isDemo, isHosted, isKeylessProvider, providerLabel } from "@/lib/providers";
@@ -98,6 +99,7 @@ export default function Builder({
   const [panel, setPanel] = useState<PanelId>("preview");
   const [codeFile, setCodeFile] = useState<string | null>(null);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
   const [mode, setMode] = useState<BuildMode>("chat");
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [push, setPush] = useState<{ busy: boolean; result?: string; error?: string }>({
@@ -843,6 +845,14 @@ export default function Builder({
                   </div>
                   <button
                     type="button"
+                    className="publish-trigger"
+                    onClick={() => setPublishOpen(true)}
+                    title="Publish this app"
+                  >
+                    {project?.publish ? "Published" : "Publish"}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setRelease((value) => value + 1)}
                     title="Reload preview"
                   >
@@ -1149,6 +1159,17 @@ export default function Builder({
             : "Cloud · key"}
         </span>
       </footer>
+
+      {publishOpen ? (
+        <PublishPanel
+          projectId={projectId}
+          published={project?.publish ?? null}
+          onClose={() => setPublishOpen(false)}
+          onPublished={async () => {
+            await refresh().catch(() => undefined);
+          }}
+        />
+      ) : null}
 
       <FileDrawer
         files={files}

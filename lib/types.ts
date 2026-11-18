@@ -81,6 +81,12 @@ export type ProjectMeta = {
     branch: string;
     htmlUrl?: string;
   };
+  publish?: {
+    provider: "cloudflare-pages";
+    projectName: string;
+    url: string;
+    deployedAt: string;
+  };
 };
 
 export type ProjectData = ProjectMeta & {

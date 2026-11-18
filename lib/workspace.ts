@@ -190,6 +190,12 @@ export async function readFileSafe(id: string, relativePath: string): Promise<st
   return text;
 }
 
+export async function readFileBytes(id: string, relativePath: string): Promise<Buffer> {
+  const root = projectDir(id);
+  const absolute = resolveInside(root, relativePath);
+  return fs.readFile(absolute);
+}
+
 export async function writeFileSafe(
   id: string,
   relativePath: string,

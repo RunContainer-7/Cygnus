@@ -15,11 +15,11 @@ Open http://localhost:3000. It starts on **Nemotron 3.5 Lightning**, a hosted op
 
 ## Download for Windows
 
-The latest published installer release is **[v0.1.6](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.6)**.
+The latest published installer release is **[v0.1.7](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.7)**.
 
-- [Cygnus-Setup-0.1.6.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.6/Cygnus-Setup-0.1.6.exe) — installer with Start Menu and desktop shortcuts.
-- [Cygnus-Portable-0.1.6.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.6/Cygnus-Portable-0.1.6.exe) — portable build that runs without installing.
-- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.6/SHA256SUMS.txt) — checksums for both downloads.
+- [Cygnus-Setup-0.1.7.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.7/Cygnus-Setup-0.1.7.exe) — installer with Start Menu and desktop shortcuts.
+- [Cygnus-Portable-0.1.7.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.7/Cygnus-Portable-0.1.7.exe) — portable build that runs without installing.
+- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.7/SHA256SUMS.txt) — checksums for both downloads.
 
 Installed v0.1.1 and later copies check GitHub Releases on launch and show an in-app update button; updates download and restart in place. Portable builds show a download link instead. The earlier v0.1.0 installers do not include the updater, so updating from v0.1.0 requires this one manual install.
 
@@ -36,13 +36,22 @@ npm run dist
 
 That produces the installers plus update metadata in `release/`:
 
-- `Cygnus-Setup-0.1.6.exe` — a normal setup wizard with Start menu and desktop shortcuts.
-- `Cygnus-Portable-0.1.6.exe` — runs without installing anything.
+- `Cygnus-Setup-0.1.7.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.1.7.exe` — runs without installing anything.
 - `latest.yml` — the update feed consumed by installed copies.
 
 Rebuild the installer after changes to package a new version.
 
 No API key is required to try it. New installs start on the free **Nemotron 3.5 Lightning** model; the **Offline demo** is still available in Settings and writes a sample project without any model call. Choose free cloud or on-device open-source models from the composer picker, and open **Settings** for Ollama, LM Studio, or BYOK connections.
+
+## Publishing
+
+Open **Publish** in the preview toolbar.
+
+- **Download .zip** always works: it packages the project's own files (never the chat history or project metadata) so you can host them anywhere.
+- **Cloudflare Pages** publishes into your own free Cloudflare account. Create an API token with *Account → Cloudflare Pages → Edit*, connect it once, and Cygnus uploads directly to Cloudflare. You get a `name.pages.dev` address; no credit card is needed and static bandwidth is free. Republish after changes, or take the site offline from the same panel.
+
+Cygnus never holds a shared hosting account, so your quota, address, and bill stay yours.
 
 ## Models
 

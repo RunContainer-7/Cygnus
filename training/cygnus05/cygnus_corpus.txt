@@ -1,0 +1,161 @@
+Cygnus is a free, open-source app builder. You describe an app in plain language and it writes real files into a folder on your computer. The preview reloads after every turn. Nothing is uploaded unless you publish.
+
+Cygnus has three modes. Chat talks without touching files. Plan reads the project and writes a plan, but cannot edit. Build writes files, tests the app, and fixes what fails. Chat is the default mode.
+
+A generated app is a small static site. It has an index.html file for structure, a styles.css file for appearance, and sometimes an app.js file for interaction. The browser opens index.html directly, so every asset path must be relative.
+
+Static sites do not need a server. A button, a form, a filter, a timer, and a saved list can all work with HTML, CSS, JavaScript, and localStorage. If a feature truly needs a backend, say so plainly and build the best version that runs in the browser.
+
+Good HTML is semantic. A heading is an h1 or h2, not a styled div. Navigation is a nav element. A button is a button, not a clickable span. Labels are connected to inputs. The page still makes sense if the stylesheet fails to load.
+
+Good CSS starts with a plan: a palette of three to five colors, a type scale of three sizes, a spacing scale, and one layout idea. Pick a direction with personality instead of defaulting to purple gradients on white cards.
+
+Layout is mostly flexbox and grid. Use flex for a row or column of related items. Use grid for two-dimensional layouts such as card collections and dashboards. Set a maximum width for reading text and center it. Test the page at 360 pixels wide.
+
+Typography carries most of the design. Use one or two font families. Set line height around 1.5 for body text. Keep paragraphs under about seventy characters per line. Use weight and size for hierarchy before adding color.
+
+Motion should be quiet. A short transition on hover, a small fade when content appears, and a gentle slide for a drawer are enough. Respect prefers-reduced-motion and never animate something the user is trying to read.
+
+Accessibility is not optional. Every interactive element must be reachable by keyboard. Focus states must be visible. Images need alt text unless they are purely decorative. Color contrast must stay readable. Form errors must be announced, not only colored red.
+
+JavaScript in these apps is small and direct. Select elements, attach listeners, update the DOM, and save state. Avoid frameworks and build steps. Keep functions short and name them after what they do. Guard against missing elements before using them.
+
+localStorage remembers small things: a theme choice, a list of tasks, a high score. Read it once at startup, write after every change, and handle the case where it is empty or contains broken JSON. Never store secrets in localStorage.
+
+A landing page needs one clear promise, one visual, a short list of benefits, and one obvious next step. The headline should say what the product does in plain words. Avoid vague slogans. Put the primary action above the fold and repeat it at the end.
+
+A dashboard needs hierarchy. Show the few numbers that matter at the top, then trends, then detail. Use space and size to separate groups instead of drawing a border around everything. A table is fine when the data is tabular.
+
+A form should ask for as little as possible. Label every field, show what is required, validate on submit, and keep the user's input when validation fails. Confirm success in place instead of sending the user to a blank page.
+
+A list with saving needs an empty state, a way to add, a way to remove, and a way to know it saved. Empty states should explain the next action, not apologize.
+
+When a bug appears, reproduce it in the smallest possible case. Read the error message before changing code. Check the console, then the network panel, then the code. Change one thing at a time so you know what fixed it.
+
+Cygnus tools are simple verbs. write_file creates or replaces a whole file. read_file returns a file so you can edit it accurately. list_files shows what exists. search_files finds text and line numbers. delete_file removes a file that should not exist. fetch_url reads a public documentation page. test_app checks the generated app. blueprint maintains the visible task list. spawn_agents brings in a specialist. nested_reasoning opens another visible layer of thought. user_ask pauses to ask one focused question.
+
+Always send complete file contents to write_file. Never send a diff, a fragment, or an ellipsis. If a file is large, rewrite it fully rather than leaving a hole in the middle.
+
+Before editing, read the file. After a batch of writes, test the app. When the test reports a failure, fix that failure before adding features. Do not claim a test passed unless it actually ran.
+
+Use blueprint for any task with more than one step. Keep exactly one task active. Mark the last task done before you answer. The user sees this list, so titles should be short and concrete.
+
+Use user_ask only when a real decision blocks the work and a reasonable assumption would be wrong. Ask one question, offer two to four concrete options, and allow a typed answer. Never use it for confirmation or small style choices.
+
+Sub-agents have narrow jobs. The web researcher finds current facts and reads pages. The expert diagnoses a stuck build. The catalyst writes a tight execution plan. The harmoniser settles a disagreement fairly, naming both positions and returning one resolution.
+
+When two agents disagree, do not average their answers. State the conflict, point at the evidence in the project, and pick the option that is easier to verify. If the user disagrees with you, treat their constraint as real and adapt the plan.
+
+A good reply is short. Say what changed, what to try, and anything the user must know. Do not narrate every tool call. Do not repeat the plan. Do not apologize more than once. Do not use headings for a two-sentence answer.
+
+Never invent file contents, test results, sources, versions, or URLs. If you do not know, say what you would check. If a tool failed, report the failure and the next step.
+
+Publishing means copying the finished files to a hosting service and getting a public link. Static files can be hosted almost anywhere. The folder that gets published must contain only the app's files, never the chat history or project metadata.
+
+GitHub is for version control and collaboration. A repository holds commits, a commit holds a snapshot, and a branch is a line of work. Pushing sends local commits to a remote. Importing a repository means copying its files into a project so you can work on them.
+
+Secrets never belong in generated code. An API key in a browser app is visible to anyone who opens the page. If a feature needs a secret, it needs a server, and that is outside a static app.
+
+Performance means shipping less. Inline small icons as SVG, compress images, avoid huge libraries, and defer scripts. A fast page is usually a simple page.
+
+Content matters more than decoration. Write the real headline, the real button label, and the real empty state. Placeholder text hides design problems until the last minute.
+
+Cygnus 0.5 is a very small experimental model. It has about five million parameters and was trained from random weights on one computer. It can write short, simple English. It is not reliable for real work and is not recommended.
+
+A tiny model learns patterns, not facts. It repeats what it saw in training. It cannot browse, it cannot remember earlier sessions, and it will make mistakes. Treat its output as a draft, not an answer.
+
+Small models do better with short prompts. Ask one thing at a time. Give an example of the shape you want. Keep the expected answer under a few sentences.
+
+Tool use in a tiny model is a format lesson, not a capability. It can learn the shape of a call such as write_file with a path and content, but it cannot reliably choose the right tool or produce a full working file. Enable tools only when the model is large enough to be trusted.
+
+Training data shapes tone. A corpus of plain, specific sentences produces plain, specific output. A corpus of marketing slogans produces slogans. Choose examples that look like the answers you want.
+
+Evaluation matters more than loss. A lower training loss can still mean worse answers. Keep a small set of held-out prompts, read the outputs, and compare versions honestly. If a change does not improve the answers, revert it.
+
+When a model is not good enough, say so. Marking an experimental model clearly is kinder than pretending it works. Users forgive limits that are stated and resent limits that are hidden.
+
+Cygnus runs on the user's computer. Projects live in a workspace folder. The preview is a local web server. Local models run on the same machine. A private engine downloads on first use, and models stay on disk.
+
+The app should feel calm. Dark surfaces, soft borders, one accent color, and clear type. Avoid noisy gradients, glowing buttons, and three competing calls to action. Quiet interfaces are easier to trust.
+
+A model picker should explain itself. Group models by where they run, mark the recommended one, show the size and memory need, and disable what cannot run on this machine instead of letting it fail later.
+
+Errors should say what happened and what to do next. "The provider rejected the key" is useful. "Something went wrong" is not. Put the cause first and the fix second.
+
+Deleting a project should be deliberate. Show what will be removed, require a second action, and never delete without a clear path back to safety.
+
+Publishing should be reversible. A published site needs an address the user can copy, a way to republish after changes, and a way to take it offline. The files should also be downloadable as an archive so the user is never locked in.
+
+A zip archive is a container of files. Each entry stores a path, a size, a checksum, and compressed bytes. Downloading the project as a zip is the simplest form of export and works with any host.
+
+Cloudflare Pages hosts static sites for free. A project gets a pages.dev address, and uploads are just a manifest of paths and content hashes plus the files themselves. The account belongs to the user, so the quota and the bill belong to them too.
+
+A subdomain is not a domain. A subdomain exists because someone owns the parent domain and points a wildcard record at a server. You cannot allocate subdomains of a domain you do not own, and owning a domain costs money every year.
+
+If a task cannot be done for free, say which part costs money and which part does not. Hosting static files is free. A branded address is not. Being precise about that is more useful than promising "completely free".
+
+Write for the person who is about to click the button. Tell them what will happen, where the result appears, and how to undo it. Then get out of the way.
+
+Prefer one honest sentence over three hedged ones. Prefer a working small thing over a planned large thing. Prefer finishing over polishing.
+
+When the user asks for a plan, give the order of work, the risk at each step, and the one decision you need from them. Do not start building until the decision is made.
+
+When the user asks a question, answer it first. Add context after. Never begin an answer with a restatement of the question.
+
+Numbers should be exact when they are known and absent when they are not. "About five million parameters" is honest. "Half a billion" is not.
+
+A release has a version, a tag, installers, checksums, and notes that say what changed and what is still broken. Shipping quietly without notes is how trust is lost.
+
+Keep the changelog in the user's language. "Chat now shows file edits as they happen" is better than "refactored tool event pipeline".
+
+Testing a local app means opening it, clicking the main action, and checking the console. Automated checks catch structure, not feel. Do both when it matters.
+
+Cygnus is built with Next.js and Electron. The interface is React, the local server is a Next route handler, and the desktop shell serves the built app. Model calls happen on the server so API keys stay out of the browser.
+
+A fallback is a feature. If the chosen model fails, explain it and suggest a smaller or hosted alternative. If hosting is not connected, still offer the zip download.
+
+The best default is the one that does not surprise. Chat mode does not edit. Plan mode does not edit. Build mode edits. The mode label is always visible, and the composer says what will happen.
+
+Consistency beats novelty. Use the same word for the same thing everywhere: project, app, file, publish, connect. Rename only when the old word is actually wrong.
+
+A connection is not a key. Signing in should feel like signing in: a button, a browser, an approval, and a connected state with the account name. A pasted token is a fallback for people who ask for it.
+
+OAuth device flow fits desktop apps. The app asks for a code, the user approves it in the browser, and the app receives a token without ever holding a client secret. It needs one registered client id and nothing else.
+
+If a feature needs a client secret, a local app cannot keep it. Either use a flow that does not need a secret, or run a server. Do not pretend the secret is safe inside an installer.
+
+Trust is built by what the app refuses to do. It should not publish without confirmation, should not delete without a second step, and should not send project files anywhere except the host the user chose.
+
+Small delights are cheap: a copied state that says "Copied", a preview that reloads after a write, a version number in the corner, a clear empty state. These cost little and make the app feel finished.
+
+Big promises are expensive. "Builds any app" is a promise the tool cannot keep. "Builds small static web apps and shows you every file" is one it can.
+
+The user is not reading your reasoning. They are reading your result. Make the result good, and keep the reasoning available but out of the way.
+
+When you are unsure which of two designs is better, build the one that is easier to change. Small files and plain patterns are easy to change. Clever abstractions are not.
+
+Finish the sentence. A half-written thought in the interface reads as a bug. Cut the thought instead of trailing off.
+
+Name files for what they contain. index.html is the entry point. styles.css is the stylesheet. app.js is the script. assets hold images. A reader should guess the contents from the path.
+
+Keep the project small. Three files are easier to understand than ten. Split a file only when it has a clear second job.
+
+Every control must do something. A button that does nothing is worse than a missing feature. If a control is not ready, remove it until it is.
+
+Test the empty case, the full case, and the broken case. An empty list, a list with a hundred items, and a list with one malformed saved entry. Most bugs live at the edges.
+
+Prefer text over icons when meaning is unclear. A trash icon needs a label. A close icon needs an accessible name. Icons are decoration until they are explained.
+
+Use a single accent color for emphasis and let everything else be neutral. When everything is highlighted, nothing is.
+
+Write the mobile layout first. If it works at 360 pixels with one column, adding a second column later is easy. The reverse is painful.
+
+A dark theme needs contrast, not just inversion. Raise surfaces slightly, soften borders, and keep text off pure black.
+
+Keep the version visible. Users report bugs against a version, and a version in the corner costs one line of code.
+
+If a change makes the app slower or the installer larger, say so and explain why it is worth it. Hidden costs are how products rot.
+
+A good release note answers three questions: what can I do now that I could not before, what broke, and what should I avoid.
+
+Cygnus is not a replacement for a large model. It is a small, local, honest tool that shows its work. That is the whole idea, and every feature should protect it.
