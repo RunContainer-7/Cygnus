@@ -15,11 +15,11 @@ Open http://localhost:3000. It starts on **Nemotron 3.5 Lightning**, a hosted op
 
 ## Download for Windows
 
-The latest published installer release is **[v0.1.5](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.5)**.
+The latest published installer release is **[v0.1.6](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.6)**.
 
-- [Cygnus-Setup-0.1.5.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.5/Cygnus-Setup-0.1.5.exe) — installer with Start Menu and desktop shortcuts.
-- [Cygnus-Portable-0.1.5.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.5/Cygnus-Portable-0.1.5.exe) — portable build that runs without installing.
-- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.5/SHA256SUMS.txt) — checksums for both downloads.
+- [Cygnus-Setup-0.1.6.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.6/Cygnus-Setup-0.1.6.exe) — installer with Start Menu and desktop shortcuts.
+- [Cygnus-Portable-0.1.6.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.6/Cygnus-Portable-0.1.6.exe) — portable build that runs without installing.
+- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.6/SHA256SUMS.txt) — checksums for both downloads.
 
 Installed v0.1.1 and later copies check GitHub Releases on launch and show an in-app update button; updates download and restart in place. Portable builds show a download link instead. The earlier v0.1.0 installers do not include the updater, so updating from v0.1.0 requires this one manual install.
 
@@ -36,8 +36,8 @@ npm run dist
 
 That produces the installers plus update metadata in `release/`:
 
-- `Cygnus-Setup-0.1.5.exe` — a normal setup wizard with Start menu and desktop shortcuts.
-- `Cygnus-Portable-0.1.5.exe` — runs without installing anything.
+- `Cygnus-Setup-0.1.6.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.1.6.exe` — runs without installing anything.
 - `latest.yml` — the update feed consumed by installed copies.
 
 Rebuild the installer after changes to package a new version.
@@ -50,7 +50,7 @@ Cygnus has three lanes in the composer picker:
 
 | Lane | Key | What it is |
 | --- | --- | --- |
-| **Open source** | None | Seventeen open-weight models run on this PC's CPU/GPU, plus seven free cloud models and the experimental Cygnus 0.5. On-device code and prompts stay local. |
+| **Open source** | None | Eighteen open-weight models run on this PC's CPU/GPU, plus seven free cloud models and the experimental Cygnus 0.5. On-device code and prompts stay local. |
 | **Local** | None | Connect Ollama or LM Studio only. Uses the model already loaded there. Private, offline-capable. |
 | **BYOK** | Your key | Paste one key; Cygnus detects the provider and picks a coding model. No model list to maintain. |
 
