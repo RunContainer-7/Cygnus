@@ -152,22 +152,22 @@ class Cygnus05Model {
     } catch (error) {
       const detail = error instanceof Error ? error.message : "unknown error";
       throw new Error(
-        `Cygnus 0.5 weights are missing or unreadable (${detail}). Reinstall Cygnus or retrain the model.`,
+        `Cygnus 0.5.1 weights are missing or unreadable (${detail}). Reinstall Cygnus or retrain the model.`,
       );
     }
 
     if (!config || !Array.isArray(config.tensors) || !Array.isArray(vocab)) {
-      throw new Error("Cygnus 0.5 has no valid model manifest.");
+      throw new Error("Cygnus 0.5.1 has no valid model manifest.");
     }
     if (vocab.length !== config.vocab_size) {
-      throw new Error("Cygnus 0.5 vocabulary does not match its config.");
+      throw new Error("Cygnus 0.5.1 vocabulary does not match its config.");
     }
     return new Cygnus05Model(config, vocab, weights);
   }
 
   private tensor(name: string): Float32Array {
     const tensor = this.tensors.get(name);
-    if (!tensor) throw new Error(`Cygnus 0.5 is missing tensor ${name}.`);
+    if (!tensor) throw new Error(`Cygnus 0.5.1 is missing tensor ${name}.`);
     return tensor.data;
   }
 

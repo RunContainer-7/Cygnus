@@ -1,1 +1,1 @@
-export const APP_VERSION = process.env.NEXT_PUBLIC_CYGNUS_VERSION || "0.1.7";
+export const APP_VERSION = process.env.NEXT_PUBLIC_CYGNUS_VERSION || "0.1.8";

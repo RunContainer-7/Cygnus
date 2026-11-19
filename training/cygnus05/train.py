@@ -546,10 +546,14 @@ def generate(model: TinyTransformer, prompt: str, stoi: dict[str, int], itos: li
     ids = ids[-model.context :]
     x = torch.tensor([ids], dtype=torch.long)
     out = list(ids)
+    specials = {stoi[name] for name in ("<pad>", "<unk>", "<bos>", "<eos>")}
     for _ in range(max_tokens):
         window = torch.tensor([out[-model.context :]], dtype=torch.long)
         logits, _ = model(window)
-        logits = logits[0, -1] / 0.85
+        logits = logits[0, -1].clone() / 0.85
+        for token_id in specials:
+            if token_id != stoi["<eos>"]:
+                logits[token_id] = float("-inf")
         top = torch.topk(logits, 40)
         probs = F.softmax(top.values, dim=-1)
         choice = torch.multinomial(probs, 1).item()
@@ -557,7 +561,9 @@ def generate(model: TinyTransformer, prompt: str, stoi: dict[str, int], itos: li
         out.append(token_id)
         if token_id == stoi["<eos>"]:
             break
-    text = "".join(itos[token_id] for token_id in out[len(ids) :])
+    text = "".join(
+        itos[token_id] for token_id in out[len(ids) :] if token_id not in specials
+    )
     return text.strip()
 
 

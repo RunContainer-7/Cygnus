@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
               })),
             { role: "user" as const, content: userMessage },
           ];
-          send({ type: "status", text: "Cygnus 0.5 is thinking locally" });
+          send({ type: "status", text: "Cygnus 0.5.1 is thinking locally" });
           let streamed = "";
           const result = await streamCygnusChat({
             turns,
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
           const content = result.text || streamed.trim();
           if (!content) {
             throw new Error(
-              "Cygnus 0.5 did not produce a reply. This experimental model is still learning; try a shorter prompt or a tool-capable model.",
+              "Cygnus 0.5.1 did not produce a reply. This experimental model is still learning; try a shorter prompt or a tool-capable model.",
             );
           }
           await appendChat(projectId, { role: "assistant", content });

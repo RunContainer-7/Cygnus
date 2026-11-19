@@ -583,7 +583,7 @@ export default function Builder({
                     <circle cx="16" cy="27" r="1.3" />
                   </g>
                 </svg>
-                <h2>{cygnusLab ? "Talk to Cygnus 0.5" : "What are we building?"}</h2>
+                <h2>{cygnusLab ? "Talk to Cygnus 0.5.1" : "What are we building?"}</h2>
                 <p>
                   {cygnusLab
                     ? "A 5.3M-parameter model trained from scratch on this PC. Chat only, experimental, and not recommended for real work."
@@ -613,7 +613,10 @@ export default function Builder({
                   {message.blueprint && message.blueprint.length > 0 ? (
                     <BlueprintCard tasks={message.blueprint} />
                   ) : null}
-                  {busy && index === messages.length - 1 && message.activity ? (
+                  {busy &&
+                  index === messages.length - 1 &&
+                  message.activity &&
+                  !(message.events && message.events.length > 0) ? (
                     <div className="chat-status" role="status">
                       <span className="chat-status-dot" aria-hidden="true" />
                       <span>{message.activity}</span>
@@ -626,25 +629,16 @@ export default function Builder({
                     />
                   ) : null}
                   {message.events && message.events.length > 0 ? (
-                    <div className="live-timeline">
-                      {message.events.map((event, eventIndex) =>
-                        event.type === "text" ? (
-                          <div className="bubble assistant-bubble" key={`event-${eventIndex}`}>
-                            {event.text}
-                          </div>
-                        ) : (
-                          <ToolLine
-                            key={`event-${eventIndex}`}
-                            tool={event.tool}
-                            onOpen={() => {
-                              if (!event.tool.path) return;
-                              setDrawerFile(event.tool.path);
-                              setFilesOpen(true);
-                            }}
-                          />
-                        ),
-                      )}
-                    </div>
+                    <Narration
+                      events={message.events}
+                      activity={message.activity}
+                      content={message.content}
+                      live={busy && index === messages.length - 1}
+                      onOpen={(path) => {
+                        setDrawerFile(path);
+                        setFilesOpen(true);
+                      }}
+                    />
                   ) : message.content ? (
                     <div className="bubble assistant-bubble">{message.content}</div>
                   ) : null}
@@ -713,7 +707,7 @@ export default function Builder({
                       <p>{message.error}</p>
                       <p className="hint">
                         {cygnusLab
-                          ? "Cygnus 0.5 is an experimental local model. Try a shorter prompt or switch to a tool-capable model."
+                          ? "Cygnus 0.5.1 is an experimental local model. Try a shorter prompt or switch to a tool-capable model."
                           : "Check the model settings, the API key, and that the provider supports tool calling. On-device models download on first use; local servers must be running."}
                       </p>
                     </div>
@@ -756,7 +750,7 @@ export default function Builder({
               rows={2}
               placeholder={
                 cygnusLab
-                  ? "Chat with Cygnus 0.5 (experimental)…"
+                  ? "Chat with Cygnus 0.5.1 (experimental)…"
                   : "Describe a change, or ask for something new…"
               }
               aria-label="Message Cygnus"
@@ -1275,6 +1269,81 @@ function BlueprintCard({ tasks }: { tasks: BlueprintTask[] }) {
       </ul>
     </div>
   );
+}
+
+function Narration({
+  events,
+  activity,
+  content,
+  live,
+  onOpen,
+}: {
+  events: ChatEvent[];
+  activity?: string;
+  content: string;
+  live: boolean;
+  onOpen: (path: string) => void;
+}) {
+  const steps: ToolEvent[] = [];
+  let narration = "";
+  // Text written after the last tool call is the closing answer; earlier text
+  // is checkpoint narration and stays out of the final transcript.
+  let closing = "";
+  for (const event of events) {
+    if (event.type === "tool") {
+      steps.push(event.tool);
+      closing = "";
+    } else {
+      narration += event.text;
+      closing += event.text;
+    }
+  }
+  narration = narration.replace(/\s+/g, " ").trim();
+  closing = closing.replace(/\s+/g, " ").trim();
+  // Freebuff shape: one live line while working, then a collapsed step log and
+  // the answer. Intermediate narration never piles up in the transcript.
+  const reply = content.trim() ? closing || content.trim() : closing || narration;
+  const line = live ? latestSentence(narration) || activity || "Working\u2026" : "";
+
+  return (
+    <div className={`narration ${live ? "live" : ""}`}>
+      {line ? (
+        <p className="narration-line" role={live ? "status" : undefined}>
+          {live ? <span className="narration-dot" aria-hidden="true" /> : null}
+          <span>{line}</span>
+        </p>
+      ) : null}
+      {steps.length > 0 ? (
+        <details className="narration-steps">
+          <summary>
+            <span>{live ? "Working" : "Worked"}</span>
+            <em>
+              {steps.length} step{steps.length === 1 ? "" : "s"}
+            </em>
+          </summary>
+          <div className="narration-rows">
+            {steps.map((tool, toolIndex) => (
+              <ToolLine
+                key={`${tool.name}-${toolIndex}`}
+                tool={tool}
+                onOpen={() => {
+                  if (tool.path) onOpen(tool.path);
+                }}
+              />
+            ))}
+          </div>
+        </details>
+      ) : null}
+      {reply ? <div className="bubble assistant-bubble">{reply}</div> : null}
+    </div>
+  );
+}
+
+function latestSentence(text: string): string {
+  if (!text) return "";
+  const cut = Math.max(text.lastIndexOf(". "), text.lastIndexOf("! "), text.lastIndexOf("? "));
+  const tail = cut >= 0 ? text.slice(cut + 2) : text;
+  return tail.length > 180 ? `\u2026${tail.slice(-180)}` : tail;
 }
 
 function ToolLine({ tool, onOpen }: { tool: ToolEvent; onOpen: () => void }) {

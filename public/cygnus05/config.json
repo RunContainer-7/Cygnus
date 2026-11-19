@@ -12,11 +12,11 @@
   "sft_lr": 0.00012,
   "weight_decay": 0.1,
   "warmup": 120,
-  "steps": 1400,
-  "sft_steps": 720,
+  "steps": 1600,
+  "sft_steps": 250,
   "chars": 10000000,
   "seed": 1337,
-  "name": "Cygnus 0.5",
+  "name": "Cygnus 0.5.1",
   "architecture": "word-level decoder-only transformer",
   "tokenizer": "regex word/punctuation tokens",
   "tensors": [
@@ -457,12 +457,18 @@
   ],
   "metrics": {
     "parameters": 5289472,
-    "pretrain_loss": 1.9172,
-    "sft_loss": 0.3073,
+    "pretrain_loss": 1.9093784093856812,
+    "sft_loss": 0.9295551776885986,
     "steps": 1400,
-    "sft_steps": 720,
-    "corpus_chars": 11115396,
-    "train_minutes": 47.5
+    "sft_steps": 300,
+    "corpus_chars": 11131380,
+    "train_minutes": 34.45,
+    "samples": {
+      "Hello": "not once enough is real water, you have to be here.",
+      "What is your name?": "The night is your I ten slowly, light here.",
+      "Tell me a story about a cat.": "next is a bright, small friend, and the You , \". The fox felt not have to bright blue at small friend. I was small great and bird to the friend, and the sun knew it had a small Hi to be small",
+      "Build a website for a bakery.": "A little only is to are lived,\na kind little quiet town, and a small grass to be garden."
+    }
   },
-  "note": "Experimental model trained from random weights on this machine. Chat only; not recommended for real work."
+  "note": "Experimental model trained from random weights on this machine with a Cygnus-specific corpus and tool-call examples. Not recommended for real work."
 }

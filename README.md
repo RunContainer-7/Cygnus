@@ -15,11 +15,11 @@ Open http://localhost:3000. It starts on **Nemotron 3.5 Lightning**, a hosted op
 
 ## Download for Windows
 
-The latest published installer release is **[v0.1.7](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.7)**.
+The latest published installer release is **[v0.1.8](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.1.8)**.
 
-- [Cygnus-Setup-0.1.7.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.7/Cygnus-Setup-0.1.7.exe) — installer with Start Menu and desktop shortcuts.
-- [Cygnus-Portable-0.1.7.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.7/Cygnus-Portable-0.1.7.exe) — portable build that runs without installing.
-- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.7/SHA256SUMS.txt) — checksums for both downloads.
+- [Cygnus-Setup-0.1.8.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.8/Cygnus-Setup-0.1.8.exe) — installer with Start Menu and desktop shortcuts.
+- [Cygnus-Portable-0.1.8.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.8/Cygnus-Portable-0.1.8.exe) — portable build that runs without installing.
+- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.1.8/SHA256SUMS.txt) — checksums for both downloads.
 
 Installed v0.1.1 and later copies check GitHub Releases on launch and show an in-app update button; updates download and restart in place. Portable builds show a download link instead. The earlier v0.1.0 installers do not include the updater, so updating from v0.1.0 requires this one manual install.
 
@@ -36,8 +36,8 @@ npm run dist
 
 That produces the installers plus update metadata in `release/`:
 
-- `Cygnus-Setup-0.1.7.exe` — a normal setup wizard with Start menu and desktop shortcuts.
-- `Cygnus-Portable-0.1.7.exe` — runs without installing anything.
+- `Cygnus-Setup-0.1.8.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.1.8.exe` — runs without installing anything.
 - `latest.yml` — the update feed consumed by installed copies.
 
 Rebuild the installer after changes to package a new version.
@@ -83,7 +83,7 @@ Claude and Grok are not in the no-key lane: the gateway requires a signed-in key
 
 ### Agent tools
 
-Every tool-capable model gets the same tool set. The interface shows a compact activity line while a tool runs, then a result chip; the assistant's own reply stays separate from tool narration. The agent keeps iterating (up to 24 rounds per message). Cygnus 0.5 is the exception: it is an experimental chat-only model and does not call tools.
+Every tool-capable model gets the same tool set. Narration follows one shape: a single live line with the current checkpoint, the tool log collapsed underneath it as `Worked · N steps`, and the closing reply as its own message. Intermediate narration never piles up in the transcript. The agent keeps iterating (up to 24 rounds per message). Cygnus 0.5 is the exception: it is an experimental chat-only model and does not call tools.
 
 | Tool | What it does |
 | --- | --- |
@@ -125,14 +125,15 @@ Agent models are tool-capable. Solar 10.7B is the 2023 open-weight checkpoint: c
 
 ### Cygnus Labs · experimental
 
-Cygnus 0.5 is a from-scratch model, not a downloaded checkpoint. It started from random weights and was trained on this machine with `training/cygnus05/train.py`: a 4-layer, 256-wide, word-level transformer with **5.29M parameters** and a 128-token context. Pretraining used TinyStories plus Shakespeare; a short SFT pass taught the `User:` / `Cygnus:` chat format.
+Cygnus 0.5.1 is a from-scratch model, not a downloaded checkpoint. It started from random weights and was trained on this machine with `training/cygnus05/train.py`: a 4-layer, 256-wide, word-level transformer with **5.29M parameters** and a 128-token context. Pretraining used TinyStories, Shakespeare, and `training/cygnus05/cygnus_corpus.txt` — a hand-written corpus about app building, the tool shapes, and the voice Cygnus should use. SFT teaches the `User:` / `Cygnus:` chat format plus the shape of tool calls (`write_file`, `read_file`, `test_app`, `user_ask`, `spawn_agents`) from `sft_tools.jsonl`.
 
-Pick **Cygnus 0.5** under **Cygnus Labs** in the composer picker. It runs in the local server, streams from `public/cygnus05`, needs no key, and never leaves the machine. It is **chat only**: it cannot edit files, call tools, browse, or remember long conversations. It is slow on CPU and often wrong. It is marked **not recommended** and exists to make the from-scratch path visible and testable, not to build real apps.
+Pick **Cygnus 0.5.1** under **Cygnus Labs** in the composer picker. It runs in the local server, streams from `public/cygnus05`, needs no key, and never leaves the machine. It is **chat only**: it has seen tool-call examples, but it is far too small to choose tools or write full working files reliably, so tool calling stays off for it. It cannot browse or remember long conversations. It is slow on CPU and often wrong. It is marked **not recommended** and exists to make the from-scratch path visible and testable, not to build real apps.
 
 To retrain it, put the corpora in `training/data` and run:
 
 ```bash
-python training/cygnus05/train.py --steps 1400 --sft-steps 220
+python training/cygnus05/build_tool_sft.py
+python training/cygnus05/train.py --steps 1400 --sft-steps 300
 ```
 
 The script writes `public/cygnus05/config.json`, `vocab.json` and `model.bin`.
