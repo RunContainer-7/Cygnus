@@ -2,15 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import CommandPalette, { type PaletteAction } from "@/components/CommandPalette";
 import FileDrawer from "@/components/FileDrawer";
 import ModeMenu from "@/components/ModeMenu";
 import ModelMenu from "@/components/ModelMenu";
 import PublishPanel from "@/components/PublishPanel";
+import StudioPanel from "@/components/StudioPanel";
 import { useProvider } from "@/components/ProviderContext";
 import { endpointHost, isLocalEndpoint } from "@/lib/endpoints";
 import { isDemo, isHosted, isKeylessProvider, providerLabel } from "@/lib/providers";
 import { isCygnusLocalProvider } from "@/lib/cygnus05Shared";
 import { loadMode, saveMode, type BuildMode } from "@/lib/modes";
+import type { MoveAction } from "@/lib/moves";
 import type {
   AgentRun,
   AskPrompt,
@@ -106,8 +109,15 @@ export default function Builder({
     busy: false,
   });
   const [repoDraft, setRepoDraft] = useState("");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [studioTab, setStudioTab] = useState<
+    "snapshots" | "design" | "notes" | "data" | "moves"
+  >("snapshots");
+  const [duplicating, setDuplicating] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const autoSent = useRef(false);
@@ -135,6 +145,17 @@ export default function Builder({
   useEffect(() => {
     if (atBottom) bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages, atBottom]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen((value) => !value);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   async function send(raw: string) {
     const text = raw.trim();
@@ -370,6 +391,8 @@ export default function Builder({
     if (!project || !initialPrompt || autoSent.current) return;
     autoSent.current = true;
     setMobileView("chat");
+    // Drop the one-shot prompt from the URL so a reload does not send it again.
+    router.replace(`/build/${projectId}`, { scroll: false });
     void send(initialPrompt);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project, initialPrompt]);
@@ -417,6 +440,71 @@ export default function Builder({
         error: error instanceof Error ? error.message : "Could not push to GitHub.",
       });
     }
+  }
+
+  async function duplicateProject() {
+    if (duplicating) return;
+    setDuplicating(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = (await response.json().catch(() => ({}))) as { id?: string; error?: string };
+      if (!response.ok || !data.id) {
+        throw new Error(data.error ?? "Could not duplicate this project.");
+      }
+      router.push(`/build/${data.id}`);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Could not duplicate this project.");
+    } finally {
+      setDuplicating(false);
+    }
+  }
+
+  function openStudio(tab: "snapshots" | "design" | "notes" | "data" | "moves") {
+    setStudioTab(tab);
+    setStudioOpen(true);
+  }
+
+  function runMoveAction(action: MoveAction) {
+    if (action === "duplicate") {
+      void duplicateProject();
+      return;
+    }
+    if (action === "publish") {
+      setPublishOpen(true);
+      return;
+    }
+    if (action === "export") {
+      window.location.href = `/api/projects/${projectId}/export`;
+      return;
+    }
+    if (action === "settings") {
+      router.push("/settings");
+      return;
+    }
+    if (action === "templates") {
+      router.push("/templates");
+      return;
+    }
+    if (action === "device" || action === "console") {
+      setPanel(action === "console" ? "console" : "preview");
+      setMobileView("preview");
+      return;
+    }
+    if (action === "palette") {
+      setPaletteOpen(true);
+      return;
+    }
+    openStudio(action.replace("studio:", "") as "snapshots" | "design" | "notes" | "data" | "moves");
+  }
+
+  function insertPrompt(prompt: string) {
+    setInput(prompt);
+    setMobileView("chat");
+    window.setTimeout(() => inputRef.current?.focus(), 60);
   }
 
   async function removeProject() {
@@ -513,6 +601,105 @@ export default function Builder({
     settings: isKeylessProvider(provider) ? "no key" : "key saved",
   };
 
+  const paletteActions: PaletteAction[] = [
+    {
+      id: "new-app",
+      group: "App",
+      label: "New app",
+      hint: "Home",
+      run: () => router.push("/"),
+    },
+    {
+      id: "duplicate",
+      group: "App",
+      label: "Duplicate this project",
+      hint: "Remix a copy",
+      run: () => void duplicateProject(),
+    },
+    {
+      id: "publish",
+      group: "Ship",
+      label: "Publish this app",
+      hint: "Free hosting",
+      run: () => setPublishOpen(true),
+    },
+    {
+      id: "export",
+      group: "Ship",
+      label: "Download project zip",
+      hint: "Export",
+      run: () => {
+        window.location.href = `/api/projects/${projectId}/export`;
+      },
+    },
+    {
+      id: "open-preview",
+      group: "Ship",
+      label: "Open preview in a new tab",
+      run: () => window.open(`/api/preview/${projectId}/index.html`, "_blank"),
+    },
+    ...PANEL_TABS.map((tab) => ({
+      id: `panel-${tab.id}`,
+      group: "Go to",
+      label: tab.label,
+      run: () => {
+        setPanel(tab.id);
+        setMobileView("preview");
+      },
+    })),
+    ...(["chat", "plan", "build"] as const).map((next) => ({
+      id: `mode-${next}`,
+      group: "Mode",
+      label: `Switch to ${next} mode`,
+      run: () => {
+        setMode(next);
+        saveMode(next);
+      },
+    })),
+    {
+      id: "studio-snapshots",
+      group: "Studio",
+      label: "Checkpoints and rollback",
+      run: () => openStudio("snapshots"),
+    },
+    {
+      id: "studio-design",
+      group: "Studio",
+      label: "Design tokens",
+      run: () => openStudio("design"),
+    },
+    {
+      id: "studio-notes",
+      group: "Studio",
+      label: "Project notes",
+      run: () => openStudio("notes"),
+    },
+    {
+      id: "studio-data",
+      group: "Studio",
+      label: "Import CSV data",
+      run: () => openStudio("data"),
+    },
+    {
+      id: "studio-moves",
+      group: "Studio",
+      label: "Browse 64 borrowed moves",
+      run: () => openStudio("moves"),
+    },
+    {
+      id: "reload",
+      group: "Preview",
+      label: "Reload the preview",
+      run: () => setRelease((value) => value + 1),
+    },
+    {
+      id: "settings",
+      group: "App",
+      label: "Open settings",
+      run: () => router.push("/settings"),
+    },
+  ];
+
   return (
     <div className="builder">
       <nav
@@ -544,7 +731,25 @@ export default function Builder({
             {tab.label}
           </button>
         ))}
-        <span className="workspace-tabs-meta">{files.length} files</span>
+        <span className="workspace-tabs-meta">
+          <button
+            type="button"
+            className="workspace-tool"
+            onClick={() => openStudio("snapshots")}
+            title="Checkpoints, design tokens, notes, CSV and moves"
+          >
+            Studio
+          </button>
+          <button
+            type="button"
+            className="workspace-tool"
+            onClick={() => setPaletteOpen(true)}
+            title="Command palette (Ctrl/Cmd + K)"
+          >
+            ⌘K
+          </button>
+          <span>{files.length} files</span>
+        </span>
       </nav>
 
       <main className={`builder-main mobile-${mobileView}`}>
@@ -583,10 +788,10 @@ export default function Builder({
                     <circle cx="16" cy="27" r="1.3" />
                   </g>
                 </svg>
-                <h2>{cygnusLab ? "Talk to Cygnus 0.5.1" : "What are we building?"}</h2>
+                <h2>{cygnusLab ? "Talk to Cygnus 0.5 Tiny" : "What are we building?"}</h2>
                 <p>
                   {cygnusLab
-                    ? "A 5.3M-parameter model trained from scratch on this PC. Chat only, experimental, and not recommended for real work."
+                    ? "A 5.3M-parameter model trained from scratch on this PC. Chat only, still learning English, and not recommended for real work. Pick Cygnus 0.5 English for conversation."
                     : "Describe it below. Changes show up in the preview."}
                 </p>
                 <div className="example-chips">
@@ -707,7 +912,7 @@ export default function Builder({
                       <p>{message.error}</p>
                       <p className="hint">
                         {cygnusLab
-                          ? "Cygnus 0.5.1 is an experimental local model. Try a shorter prompt or switch to a tool-capable model."
+                          ? "Cygnus 0.5 Tiny is an experimental local model. Pick Cygnus 0.5 English for conversation, or switch to a tool-capable model to build."
                           : "Check the model settings, the API key, and that the provider supports tool calling. On-device models download on first use; local servers must be running."}
                       </p>
                     </div>
@@ -739,6 +944,7 @@ export default function Builder({
             }}
           >
             <textarea
+              ref={inputRef}
               value={input}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => {
@@ -750,7 +956,7 @@ export default function Builder({
               rows={2}
               placeholder={
                 cygnusLab
-                  ? "Chat with Cygnus 0.5.1 (experimental)…"
+                  ? "Chat with Cygnus 0.5 Tiny (experimental)…"
                   : "Describe a change, or ask for something new…"
               }
               aria-label="Message Cygnus"
@@ -1165,6 +1371,27 @@ export default function Builder({
         />
       ) : null}
 
+      <CommandPalette
+        open={paletteOpen}
+        actions={paletteActions}
+        onClose={() => setPaletteOpen(false)}
+      />
+
+      {studioOpen ? (
+        <StudioPanel
+          projectId={projectId}
+          files={files}
+          initialTab={studioTab}
+          onClose={() => setStudioOpen(false)}
+          onChanged={async () => {
+            await refresh().catch(() => undefined);
+            setRelease((value) => value + 1);
+          }}
+          onPrompt={insertPrompt}
+          onAction={runMoveAction}
+        />
+      ) : null}
+
       <FileDrawer
         files={files}
         open={filesOpen}
@@ -1304,6 +1531,10 @@ function Narration({
   // the answer. Intermediate narration never piles up in the transcript.
   const reply = content.trim() ? closing || content.trim() : closing || narration;
   const line = live ? latestSentence(narration) || activity || "Working\u2026" : "";
+  // While the turn is streaming, the checkpoint line is the only prose on
+  // screen. The bubble appears once the turn ends, so the live line and the
+  // half-written answer never show the same sentence twice.
+  const showReply = Boolean(reply) && !live;
 
   return (
     <div className={`narration ${live ? "live" : ""}`}>
@@ -1334,7 +1565,7 @@ function Narration({
           </div>
         </details>
       ) : null}
-      {reply ? <div className="bubble assistant-bubble">{reply}</div> : null}
+      {showReply ? <div className="bubble assistant-bubble">{reply}</div> : null}
     </div>
   );
 }

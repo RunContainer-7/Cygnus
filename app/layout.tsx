@@ -4,6 +4,7 @@ import ProviderProvider from "@/components/ProviderContext";
 import "./globals.css";
 import "./builder.css";
 import "./shell.css";
+import "./studio.css";
 
 export const metadata: Metadata = {
   title: "Cygnus — turn a thought into an app",

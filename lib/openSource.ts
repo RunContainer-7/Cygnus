@@ -44,6 +44,20 @@ export type OpenSourceModel = {
  */
 export const OPEN_SOURCE_ENGINE_MODELS: OpenSourceModel[] = [
   {
+    id: "cygnus-05-en",
+    family: "Cygnus",
+    name: "Cygnus 0.5 English",
+    tag: "qwen2.5:0.5b-instruct",
+    size: "400 MB",
+    minRamGb: 2,
+    note: "English-first 0.5B chat model. Answers questions, holds a conversation, and has everyday common sense. Chat only, no app building.",
+    tier: "low",
+    recommended: true,
+    badge: "English · chat",
+    tools: false,
+    kind: "chat",
+  },
+  {
     id: "qwen3-4b",
     family: "Qwen",
     name: "Qwen3 4B",
@@ -262,6 +276,15 @@ export const OPEN_SOURCE_ENGINE_MODELS: OpenSourceModel[] = [
 ];
 
 export const OPEN_SOURCE_BASE_URL = "http://127.0.0.1:11434/v1";
+
+/** On-device tags that can only chat; the agent should not send tools to them. */
+export function modelSupportsTools(model: string): boolean {
+  const needle = model.trim().toLowerCase();
+  const entry = OPEN_SOURCE_ENGINE_MODELS.find(
+    (item) => item.tag.toLowerCase() === needle || `${item.tag}:latest`.toLowerCase() === needle,
+  );
+  return entry ? entry.tools : true;
+}
 
 export type OpenSourceEngineStatus = {
   installed: boolean;

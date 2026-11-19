@@ -244,6 +244,9 @@ export function isKeylessProvider(provider: ProviderConfig): boolean {
 export function providerLabel(provider: ProviderConfig): string {
   if (isDemo(provider)) return "Offline demo";
   if (provider.baseUrl === CYGNUS_LOCAL_BASE_URL) return CYGNUS_LOCAL_LABEL;
+  // The on-device Cygnus 0.5 model shares the local engine's endpoint, so its
+  // own name has to win over the generic Ollama preset.
+  if (provider.label?.startsWith("Cygnus ")) return provider.label;
   if (isHosted(provider)) {
     return findHostedModel(provider.model)?.name ?? "Cygnus Hosted";
   }

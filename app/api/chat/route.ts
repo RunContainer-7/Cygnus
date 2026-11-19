@@ -4,10 +4,12 @@ import { streamCygnusChat, type CygnusChatTurn } from "@/lib/cygnus05";
 import { isCygnusLocalProvider } from "@/lib/cygnus05Shared";
 import { normalizeBaseUrl } from "@/lib/endpoints";
 import { streamModelTurn, type WireMessage } from "@/lib/llm";
+import { modelSupportsTools } from "@/lib/openSource";
 import { isBuildMode, type BuildMode } from "@/lib/modes";
 import { openAsk } from "@/lib/pendingAsks";
 import { isDemo } from "@/lib/providers";
-import { buildSystemPrompt } from "@/lib/systemPrompt";
+import { createSnapshot } from "@/lib/snapshots";
+import { buildCompanionPrompt, buildSystemPrompt } from "@/lib/systemPrompt";
 import { PLAN_TOOL_ALLOWLIST, runTool, toolDefinitions } from "@/lib/tools";
 import type {
   AgentRun,
@@ -176,6 +178,17 @@ export async function POST(request: NextRequest) {
         const history = await readChat(projectId);
         await appendChat(projectId, { role: "user", content: userMessage });
 
+        // Cline-style checkpoint: keep the files from before a build turn so a
+        // bad edit can be rolled back without leaving the app folder.
+        if (mode === "build") {
+          const existing = await listFiles(projectId);
+          if (existing.length > 0) {
+            await createSnapshot(projectId, `Before: ${userMessage.slice(0, 60)}`).catch(
+              () => undefined,
+            );
+          }
+        }
+
         if (isDemo(normalizedProvider)) {
           const result = await runDemo(projectId, userMessage, send);
           await appendChat(projectId, {
@@ -199,7 +212,7 @@ export async function POST(request: NextRequest) {
               })),
             { role: "user" as const, content: userMessage },
           ];
-          send({ type: "status", text: "Cygnus 0.5.1 is thinking locally" });
+          send({ type: "status", text: "Cygnus 0.5 Tiny is thinking locally" });
           let streamed = "";
           const result = await streamCygnusChat({
             turns,
@@ -213,7 +226,7 @@ export async function POST(request: NextRequest) {
           const content = result.text || streamed.trim();
           if (!content) {
             throw new Error(
-              "Cygnus 0.5.1 did not produce a reply. This experimental model is still learning; try a shorter prompt or a tool-capable model.",
+              "Cygnus 0.5 Tiny did not produce a reply. This experimental model is still learning; try a shorter prompt, or pick Cygnus 0.5 English for conversation.",
             );
           }
           await appendChat(projectId, { role: "assistant", content });
@@ -231,15 +244,18 @@ export async function POST(request: NextRequest) {
           })),
         );
 
-        const systemPrompt = buildSystemPrompt(filesWithContent, mode);
+        const toolsAllowed = modelSupportsTools(normalizedProvider.model);
+        const systemPrompt = toolsAllowed
+          ? buildSystemPrompt(filesWithContent, mode)
+          : buildCompanionPrompt();
         const activeTools =
-          mode === "chat"
+          mode === "chat" || !toolsAllowed
             ? []
             : mode === "plan"
               ? toolDefinitions.filter((tool) => PLAN_TOOL_ALLOWLIST.has(tool.function.name))
               : toolDefinitions;
         const priorMessages = history
-          .slice(-16)
+          .slice(toolsAllowed ? -16 : -8)
           .filter((entry) => entry.content.trim().length > 0)
           .map((entry) => ({ role: entry.role, content: entry.content }));
 

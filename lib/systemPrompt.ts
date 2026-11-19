@@ -65,6 +65,14 @@ Use blueprint for the task list. Never tell the user a file was written.`,
   build: "",
 };
 
+/**
+ * Small on-device chat models cannot hold a 30k-character builder brief. Give
+ * them a short, plain-English identity and keep the reply conversational.
+ */
+export function buildCompanionPrompt(): string {
+  return `You are Cygnus 0.5, a friendly assistant running on the user's computer.\n\nSpeak plain English. Answer the question first, then add one useful detail. Keep replies short: two to five sentences unless the user asks for more. Use everyday common sense and say when you are unsure. You cannot browse the web, edit files, or remember earlier sessions. Never invent facts, links, or events.`;
+}
+
 export function buildSystemPrompt(
   files: FileEntry[],
   mode: BuildMode = "build",

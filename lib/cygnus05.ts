@@ -152,22 +152,22 @@ class Cygnus05Model {
     } catch (error) {
       const detail = error instanceof Error ? error.message : "unknown error";
       throw new Error(
-        `Cygnus 0.5.1 weights are missing or unreadable (${detail}). Reinstall Cygnus or retrain the model.`,
+        `Cygnus 0.5 Tiny weights are missing or unreadable (${detail}). Reinstall Cygnus or retrain the model.`,
       );
     }
 
     if (!config || !Array.isArray(config.tensors) || !Array.isArray(vocab)) {
-      throw new Error("Cygnus 0.5.1 has no valid model manifest.");
+      throw new Error("Cygnus 0.5 Tiny has no valid model manifest.");
     }
     if (vocab.length !== config.vocab_size) {
-      throw new Error("Cygnus 0.5.1 vocabulary does not match its config.");
+      throw new Error("Cygnus 0.5 Tiny vocabulary does not match its config.");
     }
     return new Cygnus05Model(config, vocab, weights);
   }
 
   private tensor(name: string): Float32Array {
     const tensor = this.tensors.get(name);
-    if (!tensor) throw new Error(`Cygnus 0.5.1 is missing tensor ${name}.`);
+    if (!tensor) throw new Error(`Cygnus 0.5 Tiny is missing tensor ${name}.`);
     return tensor.data;
   }
 
@@ -447,10 +447,12 @@ export async function streamCygnusChat(options: {
   let started = false;
   await model.generate(prompt, {
     maxTokens: options.maxTokens ?? 64,
-    // This tiny model is far more coherent when it is not allowed to wander.
-    temperature: 0.02,
-    topK: 3,
-    repetitionPenalty: 1.02,
+    // Greedy decoding (temperature 0.02, top-k 3) makes a small model lock onto
+    // one phrase and repeat it. A moderate sample plus a repetition penalty is
+    // far more readable at this size.
+    temperature: 0.8,
+    topK: 40,
+    repetitionPenalty: 1.12,
     signal: options.signal,
     onToken: (token) => {
       raw += token;

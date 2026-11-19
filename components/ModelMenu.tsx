@@ -292,12 +292,8 @@ export default function ModelMenu({
   async function prepareOpenModel(entry: OpenModel, token: number) {
     if (!entry.tag) return;
 
-    if (entry.kind && entry.kind !== "agent") {
-      setDiscoveryError(
-        `${entry.name} is ${
-          entry.kind === "ocr" ? "an OCR model" : "a chat-only model"
-        } and cannot build apps.`,
-      );
+    if (entry.kind === "ocr") {
+      setDiscoveryError(`${entry.name} is an OCR model and cannot build apps.`);
       return;
     }
 
@@ -414,8 +410,7 @@ export default function ModelMenu({
               normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl);
     const hasKey =
       entry.access === "byok" ? Boolean(loadProviderKey(entry.baseUrl)) : false;
-    const capabilityBlocked =
-      entry.access === "open" && Boolean(entry.kind && entry.kind !== "agent");
+    const capabilityBlocked = entry.access === "open" && entry.kind === "ocr";
     const ramBlocked =
       entry.access === "open" &&
       totalRamGb > 0 &&
@@ -423,9 +418,7 @@ export default function ModelMenu({
       totalRamGb < (entry.minRamGb ?? 0);
     const blocked = capabilityBlocked || ramBlocked;
     const blockLabel = capabilityBlocked
-      ? entry.kind === "ocr"
-        ? "OCR only"
-        : "No tools"
+      ? "OCR only"
       : ramBlocked
         ? `Needs ${entry.minRamGb} GB`
         : null;
@@ -534,8 +527,8 @@ export default function ModelMenu({
                   <div className="mp-group-label">Cygnus Labs · experimental</div>
                   {cygnusEntries.map(renderRow)}
                   <p className="mp-engine-note">
-                    Trained from scratch on this machine. Chat only, not an app builder, and not
-                    recommended for real work.
+                    The from-scratch 5M model. Chat only, and still learning English. For everyday
+                    conversation pick Cygnus 0.5 English under On this PC.
                   </p>
                 </>
               ) : null}
@@ -790,6 +783,9 @@ function ModelRow({
           {entry.name}
           {entry.recommended ? <em className="mp-badge rec">Recommended</em> : null}
           {entry.badge ? <em className="mp-badge">{entry.badge}</em> : null}
+          {entry.access === "open" && entry.kind === "chat" ? (
+            <em className="mp-badge">Chat only</em>
+          ) : null}
           {entry.access !== "local" ? (
             <em className={`mp-tier-pill ${entry.tier}`}>{tierLabel(entry)}</em>
           ) : null}
