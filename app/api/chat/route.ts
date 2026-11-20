@@ -9,7 +9,11 @@ import { isBuildMode, type BuildMode } from "@/lib/modes";
 import { openAsk } from "@/lib/pendingAsks";
 import { isDemo } from "@/lib/providers";
 import { createSnapshot } from "@/lib/snapshots";
-import { buildCompanionPrompt, buildSystemPrompt } from "@/lib/systemPrompt";
+import {
+  buildCompanionPrompt,
+  buildSystemPrompt,
+  sanitizeCompanionReply,
+} from "@/lib/systemPrompt";
 import { PLAN_TOOL_ALLOWLIST, runTool, toolDefinitions } from "@/lib/tools";
 import type {
   AgentRun,
@@ -212,7 +216,7 @@ export async function POST(request: NextRequest) {
               })),
             { role: "user" as const, content: userMessage },
           ];
-          send({ type: "status", text: "Cygnus 0.5 Tiny is thinking locally" });
+          send({ type: "status", text: "Cygnus 0.5 Femto is thinking locally" });
           let streamed = "";
           const result = await streamCygnusChat({
             turns,
@@ -226,7 +230,7 @@ export async function POST(request: NextRequest) {
           const content = result.text || streamed.trim();
           if (!content) {
             throw new Error(
-              "Cygnus 0.5 Tiny did not produce a reply. This experimental model is still learning; try a shorter prompt, or pick Cygnus 0.5 English for conversation.",
+              "Cygnus 0.5 Femto did not produce a reply. This experimental model is still learning; try a shorter prompt, or pick Cygnus 0.5 for conversation.",
             );
           }
           await appendChat(projectId, { role: "assistant", content });
@@ -301,10 +305,22 @@ export async function POST(request: NextRequest) {
             onText: (delta) => {
               assistantText += delta;
               appendText(delta);
-              send({ type: "text", value: delta });
+              // Chat-only models are buffered so the vendor-name filter sees the
+              // whole reply before a single token reaches the screen.
+              if (toolsAllowed) send({ type: "text", value: delta });
             },
             onReasoning,
           });
+
+          if (!toolsAllowed) {
+            const clean = sanitizeCompanionReply(assistantText);
+            if (clean !== assistantText || assistantText.length > 0) {
+              assistantText = clean;
+              timeline.length = 0;
+              appendText(clean);
+              send({ type: "text", value: clean });
+            }
+          }
 
           if (turn.toolCalls.length === 0 || mode === "chat") break;
 

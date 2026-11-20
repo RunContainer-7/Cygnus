@@ -15,11 +15,11 @@ Open http://localhost:3000. It starts on **Nemotron 3.5 Lightning**, a hosted op
 
 ## Download for Windows
 
-The latest published installer release is **[v0.2.0](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.2.0)**.
+The latest published installer release is **[v0.3.0](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.3.0)**.
 
-- [Cygnus-Setup-0.2.0.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.2.0/Cygnus-Setup-0.2.0.exe) — installer with Start Menu and desktop shortcuts.
-- [Cygnus-Portable-0.2.0.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.2.0/Cygnus-Portable-0.2.0.exe) — portable build that runs without installing.
-- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.2.0/SHA256SUMS.txt) — checksums for both downloads.
+- [Cygnus-Setup-0.3.0.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.3.0/Cygnus-Setup-0.3.0.exe) — installer with Start Menu and desktop shortcuts.
+- [Cygnus-Portable-0.3.0.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.3.0/Cygnus-Portable-0.3.0.exe) — portable build that runs without installing.
+- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.3.0/SHA256SUMS.txt) — checksums for both downloads.
 
 Installed v0.1.1 and later copies check GitHub Releases on launch and show an in-app update button; updates download and restart in place. Portable builds show a download link instead. The earlier v0.1.0 installers do not include the updater, so updating from v0.1.0 requires this one manual install.
 
@@ -36,8 +36,8 @@ npm run dist
 
 That produces the installers plus update metadata in `release/`:
 
-- `Cygnus-Setup-0.2.0.exe` — a normal setup wizard with Start menu and desktop shortcuts.
-- `Cygnus-Portable-0.2.0.exe` — runs without installing anything.
+- `Cygnus-Setup-0.3.0.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.3.0.exe` — runs without installing anything.
 - `latest.yml` — the update feed consumed by installed copies.
 
 Rebuild the installer after changes to package a new version.
@@ -61,7 +61,7 @@ The **Studio** button in the workspace toolbar opens five local project tools:
 - **Design** collects every color, font stack, radius and CSS custom property in the project, with counts, and copies a ready `:root` block.
 - **Notes** keeps a private brief beside the project. It is never published and never included in an export.
 - **Data** takes pasted CSV, previews the rows, and saves them as `data.csv`; one button also asks the model to build a searchable table from it.
-- **Moves** is a gallery with one starting point from each of 64 other products, from Replit remixing to Cline rollback. Actions open a real Studio surface; the rest put a concrete request in the composer.
+- **Moves** is 64 real features, one borrowed from each product on the list. 24 open a Cygnus surface (remix, publish, export, snapshots, design tokens, notes, data, device preview, palette, console, settings, templates). The other 40 generate working code, config or an audit straight into the project: `auth.js`, `store.js`, `crud.js`, `rules.js`, `automations.js`, `task-queue.js`, `activity-log.js`, `demo-data.js`, `status-line.js`, `shortcuts.js`, `onboarding.js`, `readonly.js`, `reorder.js`, `views.js`, `summary.js`, `mobile.css`, `scale.css`, `states.css`, `themes.css` + `themes.js`, `data-table.html`, `vercel.json`, `.gitlab-ci.yml`, `context.json`, and Markdown reports (`health.md`, `audit.md`, `CHECKS.md`, `PERFORMANCE.md`, `ACCESSIBILITY.md`, `SCREENS.md`, `dependencies.md`, `TODO.md`, `PLAN.md`, `SPEC.md`, `SELFHOST.md`, `README.md`, `FREE-TIER.md`, `STRUCTURE.md`). No move writes a request into the composer.
 
 Press **Ctrl/Cmd + K** (or the **⌘K** button) for the command palette: panels, modes, publish, zip export, checkpoints, notes, data, moves, and a project duplicate that forks the files as a remix without copying the chat.
 
@@ -115,7 +115,7 @@ Pick one of these in **Open source → On this PC**. Cygnus installs a standalon
 
 | Family | Model | Tag | Download | Minimum RAM |
 | --- | --- | --- | --- | --- |
-| Cygnus | Cygnus 0.5 English | `qwen2.5:0.5b-instruct` | 400 MB | 2 GB |
+| Cygnus | Cygnus 0.5 | `qwen2.5:0.5b-instruct` | 400 MB | 2 GB |
 | Qwen | Qwen3 4B | `qwen3:4b` | 2.5 GB | 6 GB |
 | Essential | Rnj-1 8B | `rnj-1:8b` | 5.1 GB | 7 GB |
 | DeepSeek | DeepSeek R1 7B | `deepseek-r1:7b` | 4.7 GB | 7 GB |
@@ -138,9 +138,9 @@ Agent models are tool-capable. Solar 10.7B is the 2023 open-weight checkpoint: c
 
 ### Cygnus Labs · local chat
 
-**Cygnus 0.5 English** is the model to pick for conversation. It runs a 0.5B instruct model through the same local engine, needs no key, and keeps every prompt on this computer. It answers questions in plain English, holds a short conversation, and has everyday common sense. It is **chat only** and does not build apps; agent models do that.
+**Cygnus 0.5** is the model to pick for conversation. It runs a 0.5B instruct model through the same local engine, needs no key, and keeps every prompt on this computer. It answers questions in plain English, holds a short conversation, and has everyday common sense. It is **chat only** and does not build apps; agent models do that.
 
-**Cygnus 0.5 Tiny** is the from-scratch experiment, not a downloaded checkpoint. It started from random weights and was trained on this machine with `training/cygnus05/train.py`: a 4-layer, 256-wide, word-level transformer with **5.29M parameters** and a 128-token context. Pretraining used TinyStories, Shakespeare, and `training/cygnus05/cygnus_corpus.txt`; SFT teaches the `User:` / `Cygnus:` format plus the shape of tool calls from `sft_tools.jsonl`. It runs from `public/cygnus05` and is marked **not recommended**: it is chat only, cannot browse, and still produces shaky English. It exists to make the from-scratch path visible and testable.
+**Cygnus 0.5 Femto** is the from-scratch experiment, not a downloaded checkpoint. It started from random weights and was trained on this machine with `training/cygnus05/train.py`: a 4-layer, 256-wide, word-level transformer with **5.29M parameters** and a 128-token context. Pretraining used TinyStories, Shakespeare, and `training/cygnus05/cygnus_corpus.txt`; SFT teaches the `User:` / `Cygnus:` format plus the shape of tool calls from `sft_tools.jsonl`. It runs from `public/cygnus05` and is marked **not recommended**: it is chat only, cannot browse, and still produces shaky English. It exists to make the from-scratch path visible and testable.
 
 To retrain it, put the corpora in `training/data` and run:
 

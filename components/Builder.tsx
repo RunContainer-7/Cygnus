@@ -788,10 +788,10 @@ export default function Builder({
                     <circle cx="16" cy="27" r="1.3" />
                   </g>
                 </svg>
-                <h2>{cygnusLab ? "Talk to Cygnus 0.5 Tiny" : "What are we building?"}</h2>
+                <h2>{cygnusLab ? "Talk to Cygnus 0.5 Femto" : "What are we building?"}</h2>
                 <p>
                   {cygnusLab
-                    ? "A 5.3M-parameter model trained from scratch on this PC. Chat only, still learning English, and not recommended for real work. Pick Cygnus 0.5 English for conversation."
+                    ? "A 5.3M-parameter model trained from scratch on this PC. Chat only, still learning English, and not recommended for real work. Pick Cygnus 0.5 for conversation."
                     : "Describe it below. Changes show up in the preview."}
                 </p>
                 <div className="example-chips">
@@ -912,7 +912,7 @@ export default function Builder({
                       <p>{message.error}</p>
                       <p className="hint">
                         {cygnusLab
-                          ? "Cygnus 0.5 Tiny is an experimental local model. Pick Cygnus 0.5 English for conversation, or switch to a tool-capable model to build."
+                          ? "Cygnus 0.5 Femto is an experimental local model. Pick Cygnus 0.5 for conversation, or switch to a tool-capable model to build."
                           : "Check the model settings, the API key, and that the provider supports tool calling. On-device models download on first use; local servers must be running."}
                       </p>
                     </div>
@@ -956,7 +956,7 @@ export default function Builder({
               rows={2}
               placeholder={
                 cygnusLab
-                  ? "Chat with Cygnus 0.5 Tiny (experimental)…"
+                  ? "Chat with Cygnus 0.5 Femto (experimental)…"
                   : "Describe a change, or ask for something new…"
               }
               aria-label="Message Cygnus"

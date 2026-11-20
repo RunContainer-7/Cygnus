@@ -9,6 +9,8 @@ export const WORKSPACE_ROOT = process.env.CYGNUS_WORKSPACE_DIR
 
 const ID_PATTERN = /^[a-z0-9]{8,16}$/;
 const RESERVED_TOP_LEVEL = new Set(["meta.json", "chat.json"]);
+/** Repository config that belongs in a project, even though it starts with a dot. */
+const ALLOWED_DOTFILES = new Set([".gitlab-ci.yml", ".gitignore", ".nojekyll", ".editorconfig", ".nvmrc"]);
 const SKIPPED_DIRS = new Set(["node_modules", ".git", ".next", ".svn"]);
 const MAX_FILE_BYTES = 400_000;
 const MAX_INLINE_CHARS = 120_000;
@@ -56,7 +58,7 @@ function assertWritablePath(relativePath: string): string {
   if (RESERVED_TOP_LEVEL.has(cleaned)) {
     throw new Error(`${cleaned} is managed by Cygnus.`);
   }
-  if (parts[0].startsWith(".") || parts.some((part) => SKIPPED_DIRS.has(part))) {
+  if ((parts[0].startsWith(".") && !ALLOWED_DOTFILES.has(cleaned)) || parts.some((part) => SKIPPED_DIRS.has(part))) {
     throw new Error("That path is reserved.");
   }
   return cleaned;

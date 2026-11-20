@@ -528,7 +528,7 @@ export default function ModelMenu({
                   {cygnusEntries.map(renderRow)}
                   <p className="mp-engine-note">
                     The from-scratch 5M model. Chat only, and still learning English. For everyday
-                    conversation pick Cygnus 0.5 English under On this PC.
+                    conversation pick Cygnus 0.5 under On this PC.
                   </p>
                 </>
               ) : null}

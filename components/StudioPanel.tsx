@@ -19,7 +19,7 @@ const TABS: Array<{ id: StudioTab; label: string; hint: string }> = [
   { id: "design", label: "Design", hint: "Colors and type in use" },
   { id: "notes", label: "Notes", hint: "Private project brief" },
   { id: "data", label: "Data", hint: "Import CSV rows" },
-  { id: "moves", label: "Moves", hint: "64 borrowed ideas" },
+  { id: "moves", label: "Moves", hint: "64 real features" },
 ];
 
 function formatBytes(bytes: number): string {
@@ -159,6 +159,34 @@ export default function StudioPanel({
 
   const design = useMemo(() => collectDesign(files), [files]);
   const rows = useMemo(() => parseCsv(csv), [csv]);
+
+  const runTool = useCallback(
+    async (toolId: string) => {
+      setBusy(toolId);
+      setError(null);
+      setNotice(null);
+      try {
+        const response = await fetch(`/api/projects/${projectId}/tool`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ toolId }),
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          report?: string;
+          wrote?: string[];
+          error?: string;
+        };
+        if (!response.ok) throw new Error(data.error ?? "That move could not run.");
+        setNotice(data.report ?? "Done.");
+        await onChanged();
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "That move could not run.");
+      } finally {
+        setBusy(null);
+      }
+    },
+    [projectId, onChanged],
+  );
 
   const loadSnapshots = useCallback(async () => {
     try {
@@ -663,8 +691,8 @@ export default function StudioPanel({
           {tab === "moves" ? (
             <section className="studio-section">
               <p className="studio-lead">
-                One move borrowed from each product on your list. Actions open a real Cygnus
-                surface; the rest become a concrete request in the composer.
+                One real feature from each product on your list. Every move either opens a
+                Cygnus surface or writes working code, config or an audit into this project.
               </p>
               <input
                 className="moves-search"
@@ -684,16 +712,24 @@ export default function StudioPanel({
                     <p>{move.blurb}</p>
                     <button
                       type="button"
+                      disabled={busy !== null}
                       onClick={() => {
                         if (move.action) {
                           onAction(move.action);
                           return;
                         }
-                        onPrompt(move.prompt);
-                        onClose();
+                        if (move.tool) {
+                          void runTool(move.tool);
+                          return;
+                        }
+                        onPrompt(`${move.title} for ${move.app}`);
                       }}
                     >
-                      {move.action ? "Open" : "Use move"}
+                      {busy === move.tool
+                        ? "Running…"
+                        : move.action
+                          ? "Open"
+                          : "Run"}
                     </button>
                   </article>
                 ))}

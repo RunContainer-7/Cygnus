@@ -46,7 +46,7 @@ export const OPEN_SOURCE_ENGINE_MODELS: OpenSourceModel[] = [
   {
     id: "cygnus-05-en",
     family: "Cygnus",
-    name: "Cygnus 0.5 English",
+    name: "Cygnus 0.5",
     tag: "qwen2.5:0.5b-instruct",
     size: "400 MB",
     minRamGb: 2,
