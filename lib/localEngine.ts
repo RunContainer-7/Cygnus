@@ -586,6 +586,84 @@ async function pullModel(
   return promise;
 }
 
+async function installGgufModel(
+  model: OpenSourceModel,
+  onProgress: (event: ByteProgress) => void,
+): Promise<void> {
+  const installed = await listInstalledModels();
+  if (installed.some((name) => sameModel(name, model.tag))) return;
+
+  const current = state();
+  const active = current.pulling.get(model.id);
+  if (active) return active;
+
+  const promise = (async () => {
+    if (!model.gguf) throw new Error(`${model.name} has no download configured.`);
+    const dir = path.join(os.homedir(), ".cygnus", "models");
+    await fsp.mkdir(dir, { recursive: true });
+    const target = path.join(dir, `${model.id}.gguf`);
+
+    const response = await fetch(model.gguf.url, {
+      signal: AbortSignal.timeout(12 * 60 * 60 * 1000),
+      redirect: "follow",
+    });
+    if (!response.ok || !response.body) {
+      throw new Error(
+        `Could not download ${model.name} (HTTP ${response.status}). Check the connection and try again.`,
+      );
+    }
+
+    const total = Number(response.headers.get("content-length") ?? 0) || undefined;
+    const temp = `${target}.part`;
+    const out = fs.createWriteStream(temp);
+    const reader = response.body.getReader();
+    let completed = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        completed += value.byteLength;
+        out.write(Buffer.from(value));
+        onProgress({ status: `Downloading ${model.name}`, completed, total });
+      }
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        out.once("finish", () => resolve());
+        out.once("error", reject);
+        out.end();
+      });
+    }
+    await fsp.rename(temp, target);
+
+    onProgress({ status: `Building ${model.name}`, completed: total, total });
+    const modelfile = [
+      `FROM ${target}`,
+      `SYSTEM """${model.gguf.system}"""`,
+      "PARAMETER temperature 0.7",
+      "PARAMETER top_p 0.9",
+      "PARAMETER repeat_penalty 1.1",
+    ].join("\n");
+
+    const create = await fetch(`${ENGINE_ORIGIN}/api/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: model.tag, modelfile, stream: false }),
+      signal: AbortSignal.timeout(30 * 60 * 1000),
+    });
+    if (!create.ok) {
+      const detail = await create.text().catch(() => "");
+      throw new Error(
+        `Could not build ${model.name} (HTTP ${create.status}). ${detail.replace(/\s+/g, " ").slice(0, 200)}`,
+      );
+    }
+  })().finally(() => {
+    current.pulling.delete(model.id);
+  });
+
+  current.pulling.set(model.id, promise);
+  return promise;
+}
+
 export async function getOpenSourceStatus(): Promise<OpenSourceStatus> {
   let engine: OpenSourceEngineStatus;
   try {
@@ -646,7 +724,7 @@ export async function prepareModel(
     status: `Preparing ${model.name}`,
   });
 
-  await pullModel(model, (event) => {
+  const report = (event: ByteProgress) => {
     onProgress({
       type: "progress",
       phase: "model",
@@ -655,7 +733,10 @@ export async function prepareModel(
       completed: event.completed,
       total: event.total,
     });
-  });
+  };
+
+  if (model.gguf) await installGgufModel(model, report);
+  else await pullModel(model, report);
 
   return { baseUrl: OPEN_SOURCE_BASE_URL, model: model.tag };
 }

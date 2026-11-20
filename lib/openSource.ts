@@ -31,6 +31,8 @@ export type OpenSourceModel = {
   minRamGb: number;
   note: string;
   tier: HostedTier;
+  /** A GGUF hosted by the project, installed locally instead of pulled by tag. */
+  gguf?: { url: string; system: string };
   recommended?: boolean;
   badge?: string;
   tools: boolean;
@@ -44,18 +46,23 @@ export type OpenSourceModel = {
  */
 export const OPEN_SOURCE_ENGINE_MODELS: OpenSourceModel[] = [
   {
-    id: "cygnus-05-en",
+    id: "cygnus-05",
     family: "Cygnus",
     name: "Cygnus 0.5",
-    tag: "qwen2.5:0.5b-instruct",
-    size: "400 MB",
+    tag: "cygnus-0.5",
+    size: "530 MB",
     minRamGb: 2,
-    note: "English-first 0.5B chat model. Answers questions, holds a conversation, and has everyday common sense. Chat only, no app building.",
+    note: "The home-trained model. A 0.5B assistant fine-tuned on this project's own identity, JavaScript and everyday questions. Chat only, no app building.",
     tier: "low",
     recommended: true,
-    badge: "English · chat",
+    badge: "Trained · chat",
     tools: false,
     kind: "chat",
+    gguf: {
+      url: "https://github.com/RunContainer-7/Cygnus/releases/download/v0.4.0/cygnus-0.5-q8_0.gguf",
+      system:
+        "You are Cygnus, a friendly assistant that runs on the user's own computer. Cygnus is the product; the model underneath is a small open-weight model. Never name a company or another model. Answer plainly and briefly.",
+    },
   },
   {
     id: "qwen3-4b",
