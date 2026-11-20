@@ -14,7 +14,12 @@ import {
   buildSystemPrompt,
   sanitizeCompanionReply,
 } from "@/lib/systemPrompt";
-import { PLAN_TOOL_ALLOWLIST, runTool, toolDefinitions } from "@/lib/tools";
+import {
+  COMPANION_TOOL_ALLOWLIST,
+  PLAN_TOOL_ALLOWLIST,
+  runTool,
+  toolDefinitions,
+} from "@/lib/tools";
 import type {
   AgentRun,
   AskPrompt,
@@ -249,11 +254,17 @@ export async function POST(request: NextRequest) {
         );
 
         const toolsAllowed = modelSupportsTools(normalizedProvider.model);
+        const companion = !toolsAllowed;
+        // A chat-only model may read the project, never write to it.
+        const companionTools = toolDefinitions.filter((tool) =>
+          COMPANION_TOOL_ALLOWLIST.has(tool.function.name),
+        );
         const systemPrompt = toolsAllowed
           ? buildSystemPrompt(filesWithContent, mode)
-          : buildCompanionPrompt();
-        const activeTools =
-          mode === "chat" || !toolsAllowed
+          : buildCompanionPrompt(companionTools.map((tool) => tool.function.name));
+        const activeTools = companion
+          ? companionTools
+          : mode === "chat"
             ? []
             : mode === "plan"
               ? toolDefinitions.filter((tool) => PLAN_TOOL_ALLOWLIST.has(tool.function.name))
@@ -304,25 +315,17 @@ export async function POST(request: NextRequest) {
             signal: request.signal,
             onText: (delta) => {
               assistantText += delta;
-              appendText(delta);
               // Chat-only models are buffered so the vendor-name filter sees the
               // whole reply before a single token reaches the screen.
-              if (toolsAllowed) send({ type: "text", value: delta });
+              if (toolsAllowed) {
+                appendText(delta);
+                send({ type: "text", value: delta });
+              }
             },
             onReasoning,
           });
 
-          if (!toolsAllowed) {
-            const clean = sanitizeCompanionReply(assistantText);
-            if (clean !== assistantText || assistantText.length > 0) {
-              assistantText = clean;
-              timeline.length = 0;
-              appendText(clean);
-              send({ type: "text", value: clean });
-            }
-          }
-
-          if (turn.toolCalls.length === 0 || mode === "chat") break;
+          if (turn.toolCalls.length === 0 || (mode === "chat" && !companion)) break;
 
           wire.push({
             role: "assistant",
@@ -398,6 +401,14 @@ export async function POST(request: NextRequest) {
           }
 
           if (step === MAX_STEPS - 1) truncated = true;
+        }
+
+        if (companion) {
+          assistantText = sanitizeCompanionReply(assistantText);
+          if (assistantText) {
+            appendText(assistantText);
+            send({ type: "text", value: assistantText });
+          }
         }
 
         const finalFiles = await listFiles(projectId);

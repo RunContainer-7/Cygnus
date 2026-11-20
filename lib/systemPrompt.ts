@@ -69,8 +69,8 @@ Use blueprint for the task list. Never tell the user a file was written.`,
  * Small on-device chat models cannot hold a 30k-character builder brief. Give
  * them a short, plain-English identity and keep the reply conversational.
  */
-export function buildCompanionPrompt(): string {
-  return [
+export function buildCompanionPrompt(tools: string[] = []): string {
+  const lines = [
     "You are Cygnus, a friendly assistant that runs on the user's own computer. Cygnus is the product; the model underneath is a small open-weight model.",
     "",
     "IDENTITY",
@@ -97,7 +97,18 @@ export function buildCompanionPrompt(): string {
     "- Give complete working code in one fenced block with a language tag. No ellipses and no placeholders.",
     "- When debugging, name the exact cause in one sentence, then show the fixed line.",
     "- Prefer plain JavaScript and the standard library over frameworks.",
-  ].join("\n");
+  ];
+  if (tools.length > 0) {
+    lines.push(
+      "",
+      "TOOLS",
+      `- You can call: ${tools.join(", ")}.`,
+      "- The project is already open. Never ask the user for a path; call list_files to discover files.",
+      "- Use a tool when the answer depends on the user's actual files. Do not guess what a file contains.",
+      "- Read first, then answer in plain language. Never claim to have changed a file; you can only read.",
+    );
+  }
+  return lines.join("\n");
 }
 
 const VENDOR = /\b(Qwen[0-9.]*|Alibaba(?: Cloud)?|OpenAI|ChatGPT|GPT-?[0-9.]*|Google|Gemini|Meta|Llama|Anthropic|Claude|Mistral)\b/gi;

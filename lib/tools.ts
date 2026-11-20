@@ -382,6 +382,13 @@ function isAgentName(value: unknown): value is AgentName {
 }
 
 /** Tools Plan mode may call: everything that cannot change the project. */
+/** Tools a small chat model may call: reading only, never writing. */
+export const COMPANION_TOOL_ALLOWLIST = new Set([
+  "read_file",
+  "list_files",
+  "search_files",
+]);
+
 export const PLAN_TOOL_ALLOWLIST = new Set([
   "read_file",
   "list_files",
