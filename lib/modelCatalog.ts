@@ -28,6 +28,8 @@ export type OpenModel = {
   access: ModelAccess;
   recommended?: boolean;
   badge?: string;
+  /** Visual tone of the badge. `warn` paints it red. */
+  tone?: "warn";
   note: string;
   family?: OpenSourceFamily;
   kind?: OpenSourceKind;
@@ -79,6 +81,7 @@ const CYGNUS_ENTRIES: OpenModel[] = [
     tier: "low",
     access: "cygnus",
     badge: "Not recommended",
+    tone: "warn",
     note: "5.3M parameters trained from random weights on this PC. Chat only; not recommended for real work.",
     family: "Cygnus",
     kind: "chat",
@@ -99,6 +102,7 @@ const ON_DEVICE_ENTRIES: OpenModel[] = OPEN_SOURCE_ENGINE_MODELS.map((entry) => 
   access: "open",
   recommended: entry.recommended,
   badge: entry.badge,
+  tone: entry.tone,
   note: entry.note,
   family: entry.family,
   kind: entry.kind,

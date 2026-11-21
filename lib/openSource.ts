@@ -35,6 +35,8 @@ export type OpenSourceModel = {
   gguf?: { url: string; system: string };
   recommended?: boolean;
   badge?: string;
+  /** Visual tone of the badge. `warn` paints it red. */
+  tone?: "warn";
   tools: boolean;
   kind?: OpenSourceKind;
 };
@@ -54,8 +56,8 @@ export const OPEN_SOURCE_ENGINE_MODELS: OpenSourceModel[] = [
     minRamGb: 2,
     note: "The home-trained model. A 0.5B assistant fine-tuned on this project's own identity, JavaScript and everyday questions. Chat only, no app building.",
     tier: "low",
-    recommended: true,
-    badge: "Trained · chat",
+    badge: "Not recommended",
+    tone: "warn",
     tools: false,
     kind: "chat",
     gguf: {

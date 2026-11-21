@@ -535,9 +535,11 @@ export default function ModelMenu({
                   {cygnusLabEntries.map(renderRow)}
                   {cygnusEntries.map(renderRow)}
                   <p className="mp-engine-note">
-                    Cygnus&apos;s own models. Cygnus 0.5 is trained on this project and runs on
-                    this PC; first use downloads 530 MB. Cygnus 0.5 Femto is the from-scratch 5M
-                    model, chat only and still learning English.
+                    Cygnus&apos;s own models, both chat only and neither recommended for real work.
+                    Femto ships with the app: 21 MB of weights trained from scratch on this PC, no
+                    download. Cygnus 0.5 is the fine-tuned 0.5B model and needs a one-time 530 MB
+                    download plus the local engine, because a transformer that size cannot ship
+                    inside the app.
                   </p>
                 </>
               ) : null}
@@ -761,10 +763,10 @@ function ModelRow({
 }) {
   const needsKey = entry.access === "byok" && !hasKey;
   const lane =
-    entry.access === "hosted"
-      ? "cloud"
-      : entry.access === "cygnus"
-        ? "cygnus"
+    entry.family === "Cygnus"
+      ? "cygnus"
+      : entry.access === "hosted"
+        ? "cloud"
         : entry.access === "byok"
           ? "byok"
           : "local";
@@ -791,7 +793,11 @@ function ModelRow({
         <span className="mp-row-title">
           {entry.name}
           {entry.recommended ? <em className="mp-badge rec">Recommended</em> : null}
-          {entry.badge ? <em className="mp-badge">{entry.badge}</em> : null}
+          {entry.badge ? (
+            <em className={`mp-badge ${entry.tone === "warn" ? "warn" : ""}`}>
+              {entry.badge}
+            </em>
+          ) : null}
           {entry.access === "open" && entry.kind === "chat" ? (
             <em className="mp-badge">Chat only</em>
           ) : null}
@@ -817,7 +823,9 @@ function ModelRow({
           <span className="mp-ready">Ready</span>
         ) : null}
         {!busy && !blocked && entry.access === "open" && !installed ? (
-          <span className="mp-key-hint">Download</span>
+          <span className="mp-key-hint">
+            {entry.size ? `Download ${entry.size}` : "Download"}
+          </span>
         ) : null}
         {!busy && !blocked && entry.access === "cygnus" ? (
           <span className="mp-key-hint">Chat only</span>

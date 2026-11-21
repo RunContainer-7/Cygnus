@@ -2849,6 +2849,12 @@ body {
   color: #d7c99c;
 }
 
+.mp-badge.warn {
+  border-color: rgba(248, 113, 113, 0.26);
+  background: #2a1516;
+  color: #f0a3a3;
+}
+
 .mp-row-side {
   display: flex;
   flex: none;
