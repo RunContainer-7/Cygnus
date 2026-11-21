@@ -395,7 +395,14 @@ export default function ModelMenu({
 
   const hostedEntries = visible.filter((entry) => entry.access === "hosted");
   const cygnusEntries = visible.filter((entry) => entry.access === "cygnus");
-  const onDeviceEntries = visible.filter((entry) => entry.access === "open");
+  // Cygnus-family entries run on the local engine like any other on-device
+  // model, but they belong in Labs beside the from-scratch one.
+  const cygnusLabEntries = visible.filter(
+    (entry) => entry.access === "open" && entry.family === "Cygnus",
+  );
+  const onDeviceEntries = visible.filter(
+    (entry) => entry.access === "open" && entry.family !== "Cygnus",
+  );
   const totalRamGb = engineStatus?.totalRamGb ?? 0;
 
   const renderRow = (entry: OpenModel) => {
@@ -522,13 +529,15 @@ export default function ModelMenu({
                 </>
               ) : null}
 
-              {cygnusEntries.length > 0 ? (
+              {cygnusLabEntries.length > 0 || cygnusEntries.length > 0 ? (
                 <>
                   <div className="mp-group-label">Cygnus Labs · experimental</div>
+                  {cygnusLabEntries.map(renderRow)}
                   {cygnusEntries.map(renderRow)}
                   <p className="mp-engine-note">
-                    The from-scratch 5M model. Chat only, and still learning English. For everyday
-                    conversation pick Cygnus 0.5 under On this PC.
+                    Cygnus&apos;s own models. Cygnus 0.5 is trained on this project and runs on
+                    this PC; first use downloads 530 MB. Cygnus 0.5 Femto is the from-scratch 5M
+                    model, chat only and still learning English.
                   </p>
                 </>
               ) : null}
