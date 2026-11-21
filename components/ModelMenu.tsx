@@ -14,6 +14,7 @@ import {
 } from "@/lib/modelCatalog";
 import {
   formatRamGb,
+  ramFits,
   type OpenSourceEvent,
   type OpenSourceStatus,
 } from "@/lib/openSource";
@@ -72,7 +73,8 @@ function tierLabel(entry: OpenModel): string {
 }
 
 function normalizeModelName(value: string): string {
-  return value.trim().toLowerCase();
+  // The engine reports untagged models as `name:latest`; match either form.
+  return value.trim().toLowerCase().replace(/:latest$/, "");
 }
 
 export default function ModelMenu({
@@ -420,9 +422,8 @@ export default function ModelMenu({
     const capabilityBlocked = entry.access === "open" && entry.kind === "ocr";
     const ramBlocked =
       entry.access === "open" &&
-      totalRamGb > 0 &&
       Boolean(entry.minRamGb) &&
-      totalRamGb < (entry.minRamGb ?? 0);
+      !ramFits(totalRamGb, entry.minRamGb ?? 0);
     const blocked = capabilityBlocked || ramBlocked;
     const blockLabel = capabilityBlocked
       ? "OCR only"

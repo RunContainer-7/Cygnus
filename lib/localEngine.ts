@@ -9,6 +9,7 @@ import { pipeline } from "node:stream/promises";
 import {
   OPEN_SOURCE_BASE_URL,
   OPEN_SOURCE_ENGINE_MODELS,
+  ramFits,
   type OpenSourceEngineStatus,
   type OpenSourceModel,
   type OpenSourceProgress,
@@ -133,13 +134,15 @@ async function probeEngine(): Promise<{ version: string } | null> {
   }
 }
 
-async function listInstalledModels(): Promise<string[]> {
+async function listInstalledModels(): Promise<string[] | null> {
   try {
+    // A big model makes the engine scan a large blob store, so this can take
+    // much longer than a trivial request; a short timeout would look empty.
     const response = await fetch(`${ENGINE_ORIGIN}/api/tags`, {
       cache: "no-store",
-      signal: AbortSignal.timeout(2_500),
+      signal: AbortSignal.timeout(15_000),
     });
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     const data = (await response.json().catch(() => null)) as
       | { models?: Array<{ name?: unknown; model?: unknown }> }
       | null;
@@ -151,8 +154,18 @@ async function listInstalledModels(): Promise<string[]> {
       ),
     );
   } catch {
-    return [];
+    return null;
   }
+}
+
+/** Verify a finished install, giving the engine time to write its manifest. */
+async function waitForModel(tag: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const installed = await listInstalledModels();
+    if (installed?.some((name) => sameModel(name, tag))) return true;
+    if (attempt < 5) await delay(1_500);
+  }
+  return false;
 }
 
 async function findFile(directory: string, name: string, depth = 0): Promise<string | null> {
@@ -368,6 +381,12 @@ async function download(url: string, destination: string, onProgress: (event: By
     counter,
     fs.createWriteStream(destination),
   );
+  if (total > 0 && completed !== total) {
+    await fsp.unlink(destination).catch(() => undefined);
+    throw new Error(
+      `The local engine download stopped at ${completed} of ${total} bytes. Check the connection and try again.`,
+    );
+  }
   onProgress({ status: "Downloaded the local engine", completed, total });
 }
 
@@ -527,6 +546,7 @@ function sameModel(left: string, right: string): boolean {
 
 function percent(completed?: number, total?: number): number | null {
   if (typeof completed !== "number" || typeof total !== "number" || total <= 0) return null;
+  if (completed >= total) return 100;
   return Math.max(0, Math.min(99, Math.round((completed / total) * 100)));
 }
 
@@ -535,7 +555,7 @@ async function pullModel(
   onProgress: (event: ByteProgress) => void,
 ): Promise<void> {
   const installed = await listInstalledModels();
-  if (installed.some((name) => sameModel(name, model.tag))) return;
+  if (installed?.some((name) => sameModel(name, model.tag))) return;
 
   const current = state();
   const active = current.pulling.get(model.id);
@@ -599,9 +619,8 @@ async function pullModel(
     }
     if (buffer.trim()) handleLine(buffer);
 
-    const after = await listInstalledModels();
-    if (!after.some((name) => sameModel(name, model.tag))) {
-      throw new Error(`${model.name} finished downloading but Ollama did not list it.`);
+    if (!(await waitForModel(model.tag))) {
+      throw new Error(`${model.name} finished downloading but the engine did not list it.`);
     }
   })().finally(() => {
     current.pulling.delete(model.id);
@@ -616,7 +635,7 @@ async function installGgufModel(
   onProgress: (event: ByteProgress) => void,
 ): Promise<void> {
   const installed = await listInstalledModels();
-  if (installed.some((name) => sameModel(name, model.tag))) return;
+  if (installed?.some((name) => sameModel(name, model.tag))) return;
 
   const current = state();
   const active = current.pulling.get(model.id);
@@ -732,8 +751,7 @@ async function installGgufModel(
       await fsp.unlink(modelfilePath).catch(() => undefined);
     }
 
-    const after = await listInstalledModels();
-    if (!after.some((name) => sameModel(name, model.tag))) {
+    if (!(await waitForModel(model.tag))) {
       throw new Error(`${model.name} was built but the engine did not list it.`);
     }
   })().finally(() => {
@@ -757,7 +775,7 @@ export async function getOpenSourceStatus(): Promise<OpenSourceStatus> {
     };
   }
 
-  const models = engine.running ? await listInstalledModels() : [];
+  const models = engine.running ? ((await listInstalledModels()) ?? []) : [];
   return {
     engine,
     models,
@@ -773,7 +791,7 @@ export async function prepareModel(
   if (!model) throw new Error("That on-device model is not in the catalog.");
 
   const availableRamGb = roundRam(os.totalmem());
-  if (availableRamGb < model.minRamGb) {
+  if (!ramFits(availableRamGb, model.minRamGb)) {
     throw new Error(
       `${model.name} needs about ${model.minRamGb} GB of RAM. This PC has ${availableRamGb} GB. Pick a smaller model or use BYOK.`,
     );

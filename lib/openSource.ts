@@ -328,3 +328,12 @@ export type OpenSourceEvent =
 export function formatRamGb(value: number): string {
   return `${Math.round(value * 10) / 10} GB`;
 }
+
+/**
+ * An 8 GB PC reports about 7.9 GB of usable memory, so a small gap must not
+ * block a model that asks for exactly 8 GB.
+ */
+export function ramFits(totalRamGb: number, minRamGb: number): boolean {
+  if (!totalRamGb || !minRamGb) return true;
+  return totalRamGb + 0.5 >= minRamGb;
+}
