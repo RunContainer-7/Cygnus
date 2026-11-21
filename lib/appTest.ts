@@ -104,6 +104,59 @@ function collectReferences(code: string, pattern: RegExp, fromFile: string): str
   return references;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function attributeValue(attributes: string, name: string): string | null {
+  const match = attributes.match(
+    new RegExp(`\\b${name}\\s*=\\s*["']([^"']*)["']`, "i"),
+  );
+  return match ? match[1] : null;
+}
+
+/** Elements the script builds itself are not expected in the static HTML. */
+function isCreatedInScript(
+  script: string,
+  name: string,
+  kind: "class" | "id" | "tag",
+): boolean {
+  const escaped = escapeRegExp(name);
+  if (kind === "class") {
+    return (
+      new RegExp(`classList\\.(?:add|toggle)\\([^)]*["'\`]${escaped}["'\`]`, "i").test(script) ||
+      new RegExp(`className\\s*=\\s*["'\`][^"'\`]*\\b${escaped}\\b`, "i").test(script) ||
+      new RegExp(`\\bclass\\s*=\\s*["'\`][^"'\`]*\\b${escaped}\\b`, "i").test(script)
+    );
+  }
+  if (kind === "id") {
+    return new RegExp(`\\bid\\s*=\\s*["'\`]${escaped}["'\`]`, "i").test(script);
+  }
+  return (
+    new RegExp(`createElement\\(\\s*["'\`]${escaped}["'\`]`, "i").test(script) ||
+    new RegExp(`<${escaped}\\b`, "i").test(script)
+  );
+}
+
+function simpleSelectorParts(
+  selector: string,
+): Array<{ kind: "class" | "id" | "tag"; name: string }> {
+  // Attribute selectors, pseudo-classes and comma lists cannot be checked
+  // without a real DOM; guessing there only creates false failures.
+  if (/[,\[\]:]/.test(selector)) return [];
+  const cleaned = selector
+    .replace(/::?[a-z-]+(?:\([^)]*\))?/gi, " ")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/[>+~]/g, " ");
+  const parts: Array<{ kind: "class" | "id" | "tag"; name: string }> = [];
+  for (const token of cleaned.match(/[#.]?[A-Za-z_][\w-]*/g) ?? []) {
+    if (token.startsWith("#")) parts.push({ kind: "id", name: token.slice(1) });
+    else if (token.startsWith(".")) parts.push({ kind: "class", name: token.slice(1) });
+    else parts.push({ kind: "tag", name: token.toLowerCase() });
+  }
+  return parts;
+}
+
 export async function testProject(projectId: string, origin?: string): Promise<AppTestResult> {
   const files = await listFiles(projectId);
   const paths = new Set(files.map((file) => file.path));
@@ -159,9 +212,11 @@ export async function testProject(projectId: string, origin?: string): Promise<A
   }
 
   let jsChecks = 0;
+  const scriptContents: string[] = [];
   for (const file of files) {
     if (!/\.(?:js|mjs|cjs)$/i.test(file.path)) continue;
     const code = await readFileSafe(projectId, file.path).catch(() => "");
+    scriptContents.push(code);
     const error = checkJavaScript(code, file.path);
     if (error) fail(`${file.path} does not parse: ${error}`);
     else {
@@ -183,12 +238,150 @@ export async function testProject(projectId: string, origin?: string): Promise<A
   for (let index = 0; index < inlineScripts.length; index += 1) {
     const code = inlineScripts[index][1] ?? "";
     if (!code.trim()) continue;
+    scriptContents.push(code);
     const error = checkJavaScript(code, `index.html inline script ${index + 1}`);
     if (error) fail(`Inline script ${index + 1} does not parse: ${error}`);
     else {
       jsChecks += 1;
       pass(`inline script ${index + 1} parses`);
     }
+  }
+
+  // Syntax checks cannot see a button whose handler was never written. These
+  // checks catch controls that cannot possibly work, the failure users hit
+  // first and the one "test passed" must never hide.
+  const allJs = scriptContents.join("\n");
+  const ids = new Set(
+    [...html.matchAll(/\bid\s*=\s*["']([^"']+)["']/gi)].map((match) => match[1]),
+  );
+  const classNames = new Set(
+    [...html.matchAll(/\bclass\s*=\s*["']([^"']*)["']/gi)]
+      .flatMap((match) => match[1].split(/\s+/))
+      .filter(Boolean),
+  );
+  const tagNames = new Set(
+    [...html.matchAll(/<([a-z][a-z0-9-]*)\b/gi)].map((match) => match[1].toLowerCase()),
+  );
+
+  const selectors = [
+    ...allJs.matchAll(
+      /(?:querySelectorAll|querySelector|closest|matches)\s*\(\s*["'`]([^"'`]+)["'`]/g,
+    ),
+  ].map((match) => match[1]);
+  const missingSelectors = new Set<string>();
+  for (const selector of selectors) {
+    for (const part of simpleSelectorParts(selector)) {
+      const exists =
+        part.kind === "class"
+          ? classNames.has(part.name) || isCreatedInScript(allJs, part.name, "class")
+          : part.kind === "id"
+            ? ids.has(part.name) || isCreatedInScript(allJs, part.name, "id")
+            : tagNames.has(part.name) || isCreatedInScript(allJs, part.name, "tag");
+      if (!exists) missingSelectors.add(selector.trim());
+    }
+  }
+  const CONTROL_WORD =
+    /(?:^|[\s._-])(?:add|delete|remove|save|cancel|submit|close|open|toggle|edit|clear|start|stop|play|pause|next|prev|send|copy|share|download|upload|check|complete|done|create)(?:$|[\s._-])/i;
+  if (missingSelectors.size > 0) {
+    for (const selector of missingSelectors) {
+      const message = `A script selects "${selector}", but no matching element exists and the script never creates one`;
+      // Only selectors that clearly name a control are failures. Optional
+      // lookups such as document.querySelector("form") are harmless.
+      if (CONTROL_WORD.test(selector)) {
+        fail(`${message}. That control cannot work.`);
+      } else {
+        note(`${message}; optional lookup skipped.`);
+      }
+    }
+  } else if (selectors.length > 0) {
+    pass("Every selector targets an element that exists");
+  }
+
+  const forms = [...html.matchAll(/<form\b([^>]*)>/gi)].map((match) => match[1]);
+  const handlesSubmit =
+    /addEventListener\(\s*["']submit["']/.test(allJs) || /\bonSubmit\s*=/i.test(html);
+  const hasFormAction = forms.some((attributes) =>
+    /\baction\s*=\s*["'][^"']+["']/i.test(attributes),
+  );
+  if (forms.length > 0 && !handlesSubmit && !hasFormAction) {
+    fail(
+      "A <form> has no action and no submit handler, so submitting it reloads the page and loses state.",
+    );
+  }
+
+  const submitListener = /addEventListener\(\s*["']submit["'][\s\S]{0,500}/.exec(allJs);
+  if (
+    submitListener &&
+    /delete/i.test(allJs) &&
+    /innerHTML\s*=\s*["'`]{2}/.test(submitListener[0])
+  ) {
+    fail(
+      "The form's submit handler empties the task list, so pressing Enter erases the todos. Only call preventDefault, or add the new item instead.",
+    );
+  }
+
+  if (
+    /delete/i.test(allJs) &&
+    /\.children\.length\s*-\s*1|children\[\s*\w+\.children\.length/.test(allJs)
+  ) {
+    fail(
+      "A delete handler removes an item by position (children.length - 1) instead of the item whose button was clicked, so it can delete the wrong todo. Remove the clicked button's list item instead.",
+    );
+  }
+
+  const buttons = [
+    ...html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/gi),
+  ].map((match) => ({
+    attributes: match[1],
+    label:
+      match[2]
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim() || "unnamed",
+  }));
+  const genericClickHandler =
+    /(?:document|window|document\.body|document\.documentElement)\.addEventListener\(\s*["']click["']/.test(
+      allJs,
+    ) ||
+    /\.(?:closest|matches)\(\s*["']button["']/.test(allJs) ||
+    /(?:querySelectorAll|querySelector)\s*\(\s*["'`](?:button|form\s+button)/.test(allJs);
+
+  let unwiredButtons = 0;
+  for (const button of buttons) {
+    const attributes = button.attributes;
+    if (/\bon[a-z]+\s*=/i.test(attributes)) continue;
+    const id = attributeValue(attributes, "id");
+    const className = attributeValue(attributes, "class");
+    const type = (attributeValue(attributes, "type") ?? "").toLowerCase();
+    if (type === "submit" && (handlesSubmit || hasFormAction)) continue;
+    if (id && new RegExp(`#${escapeRegExp(id)}\\b`).test(allJs)) continue;
+    if (
+      id &&
+      new RegExp(`getElementById\\(\\s*["'\`]${escapeRegExp(id)}["'\`]`).test(allJs)
+    ) {
+      continue;
+    }
+    if (
+      className &&
+      className
+        .split(/\s+/)
+        .filter(Boolean)
+        .some((name) => new RegExp(`\\.${escapeRegExp(name)}\\b`).test(allJs))
+    ) {
+      continue;
+    }
+    const dataWired = [...attributes.matchAll(/\b(data-[a-z0-9-]+)\s*=/gi)].some((match) =>
+      allJs.includes(match[1].toLowerCase()),
+    );
+    if (dataWired || genericClickHandler) continue;
+
+    unwiredButtons += 1;
+    fail(
+      `Button "${button.label}" has no click handler, so pressing it does nothing. Wire it to a listener in the script.`,
+    );
+  }
+  if (buttons.length > 0 && unwiredButtons === 0) {
+    pass("Every button is wired to a handler");
   }
 
   for (const file of files) {

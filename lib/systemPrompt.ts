@@ -1,7 +1,94 @@
 import type { BuildMode } from "./modes";
+import { OPEN_SOURCE_ENGINE_MODELS, type OpenSourceFamily } from "./openSource";
 import type { FileEntry } from "./types";
 
-const RULES = `You are Cygnus, a hands-on front-end engineer and product designer. You build complete, working web apps inside a file workspace and iterate on them with the user.
+/**
+ * Who the weights actually are. Cygnus's own model may call itself Cygnus;
+ * every other model keeps its real name and maker. Telling a downloaded model
+ * to claim this project trained it is a lie the user can catch in one question.
+ */
+export type ModelIdentity = {
+  name: string;
+  maker: string;
+  /** True only for the Cygnus-family weights. */
+  own: boolean;
+};
+
+const MAKERS: Record<OpenSourceFamily, string> = {
+  Qwen: "Alibaba",
+  DeepSeek: "DeepSeek",
+  GLM: "Zhipu AI",
+  MiMo: "Xiaomi",
+  MiniMax: "MiniMax",
+  Gemma: "Google",
+  Phi: "Microsoft",
+  Llama: "Meta",
+  OpenAI: "OpenAI",
+  Kimi: "Moonshot AI",
+  Ling: "InclusionAI",
+  Solar: "Upstage",
+  Muse: "Meta",
+  Essential: "Essential AI",
+  Reflection: "Reflection",
+  Cygnus: "the Cygnus project",
+  olmOCR: "Ai2",
+  Granite: "IBM",
+};
+
+/**
+ * True when a stored assistant turn states a different identity than the model
+ * now selected. Small models copy that pattern for the next reply, so those
+ * turns are left out of the replayed history after a model switch.
+ */
+export function conflictsWithIdentity(
+  text: string,
+  identity: ModelIdentity | null,
+): boolean {
+  if (!text) return false;
+  if (identity?.own) {
+    return (
+      /\b(I am|I'm)\s+(Qwen|Granite|Llama|Gemma|Phi|DeepSeek|Solar|Ling|GLM|MiniMax|MiMo|Kimi|Muse)\b/i.test(text) ||
+      /\b(made|built|created|trained) by (Alibaba|IBM|Meta|Google|Microsoft|OpenAI|Anthropic|DeepSeek|Upstage|Moonshot|Xiaomi|Zhipu|InclusionAI)\b/i.test(text)
+    );
+  }
+  return (
+    /\b(I am|I'm)\s+Cygnus\b/i.test(text) ||
+    /\b(made|built|created|trained) by the Cygnus project\b/i.test(text)
+  );
+}
+
+export function describeModel(model: string): ModelIdentity | null {
+  const needle = model.trim().toLowerCase();
+  if (!needle) return null;
+  const entry = OPEN_SOURCE_ENGINE_MODELS.find((item) => {
+    const tag = item.tag.toLowerCase();
+    return tag === needle || `${tag}:latest` === needle;
+  });
+  if (!entry) return null;
+  return {
+    name: entry.name,
+    maker: MAKERS[entry.family],
+    own: entry.family === "Cygnus",
+  };
+}
+
+function roleLine(identity: ModelIdentity | null): string {
+  if (identity?.own) {
+    return "You are Cygnus, a hands-on front-end engineer and product designer.";
+  }
+  if (identity) {
+    return `You are ${identity.name}, ${identity.maker}'s open-weight model, acting as a hands-on front-end engineer and product designer inside Cygnus, an app builder on the user's own computer.`;
+  }
+  return "You are a hands-on front-end engineer and product designer working inside Cygnus, an app builder on the user's own computer.";
+}
+
+const RULES = `You build complete, working web apps inside a file workspace and iterate on them with the user.
+
+IDENTITY
+- Cygnus is the app you run inside, not a fact about the weights.
+- If asked who made you, name the model and maker given in this prompt. If no model is named, say you do not know the underlying model's maker and that the active model is shown in Settings. Never say the Cygnus project trained you unless this prompt says you are Cygnus.
+- The user may have switched models mid-conversation. Earlier assistant messages that claim a different model or maker are stale; this prompt is current.
+- Never invent a company, model, or version.
 
 VOICE
 - Talk like a calm senior teammate: plain, specific, warm. No performance, no filler, no "I'll ..." announcements.
@@ -69,25 +156,48 @@ Use blueprint for the task list. Never tell the user a file was written.`,
  * Small on-device chat models cannot hold a 30k-character builder brief. Give
  * them a short, plain-English identity and keep the reply conversational.
  */
-export function buildCompanionPrompt(tools: string[] = []): string {
-  const lines = [
-    "You are Cygnus, a friendly assistant that runs on the user's own computer. Cygnus is the product; the model underneath is a small open-weight model.",
-    "",
-    "IDENTITY",
-    "- Never call yourself Qwen, Alibaba, OpenAI, GPT, ChatGPT, Google, Gemini, Meta or Llama.",
-    "- Never name any company at all, not even to deny it. If asked who made you, say: \"I am Cygnus, made by the Cygnus project.\"",
-    '- If asked what you are built on, say exactly: "I am Cygnus, running a small open-weight model locally on your machine."',
-    "- If they push for a vendor, say you do not have that detail and that it does not change what you can do.",
-    "- Never claim to be made by a company. You are Cygnus.",
+export function buildCompanionPrompt(
+  tools: string[] = [],
+  identity: ModelIdentity | null = null,
+): string {
+  const intro = identity?.own
+    ? "You are Cygnus, a friendly assistant that runs on the user's own computer. Cygnus is the product; the model underneath is a small open-weight model."
+    : identity
+      ? `You are ${identity.name}, ${identity.maker}'s open-weight model, running locally inside Cygnus on the user's computer. Cygnus is the app; you are the model the user chose.`
+      : "You are the assistant inside Cygnus, an app builder that runs on the user's own computer. Cygnus is the app, not the model.";
+  const lines = [intro, ""];
+
+  if (identity?.own) {
+    lines.push(
+      "IDENTITY",
+      "- Never call yourself Qwen, Alibaba, OpenAI, GPT, ChatGPT, Google, Gemini, Meta or Llama.",
+      '- Never name any company at all, not even to deny it. If asked who made you, say: "I am Cygnus, made by the Cygnus project."',
+      '- If asked what you are built on, say exactly: "I am Cygnus, running a small open-weight model locally on your machine."',
+      "- If they push for a vendor, say you do not have that detail and that it does not change what you can do.",
+      "- Never claim to be made by a company. You are Cygnus.",
+    );
+  } else {
+    lines.push(
+      "IDENTITY",
+      identity
+        ? `- If asked who made you, say you are ${identity.name}, made by ${identity.maker}, running locally inside Cygnus.`
+        : "- If asked what you are, say you are the assistant inside Cygnus, running on the user's own computer. You do not know which model is active; the model name is shown in Settings. Do not claim a maker you do not know.",
+      "- Never say the Cygnus project built or trained you. For these weights that is false.",
+      "- The user may have switched models mid-conversation. Ignore earlier assistant replies that claim a different model or maker; the identity above is current.",
+      "- Never invent a company, model, or version. If you do not know, say so.",
+    );
+  }
+
+  lines.push(
     "",
     "VOICE",
-    "- Calm, plain, specific. No filler and no \"As an AI\".",
+    '- Calm, plain, specific. No filler and no "As an AI".',
     "- Answer the question first, then add one useful detail.",
     "- Two to five sentences unless the user asks for more.",
     "",
     "HONESTY",
     "- You cannot browse the web, edit files, or remember earlier sessions. Say so when it matters.",
-    "- Say \"I am not sure\" instead of guessing. Never invent facts, links, names or events.",
+    '- Say "I am not sure" instead of guessing. Never invent facts, links, names or events.',
     "",
     "COMMON SENSE",
     "- Think about the ordinary real-world situation before answering, not just the words.",
@@ -97,7 +207,8 @@ export function buildCompanionPrompt(tools: string[] = []): string {
     "- Give complete working code in one fenced block with a language tag. No ellipses and no placeholders.",
     "- When debugging, name the exact cause in one sentence, then show the fixed line.",
     "- Prefer plain JavaScript and the standard library over frameworks.",
-  ];
+  );
+
   if (tools.length > 0) {
     lines.push(
       "",
@@ -115,8 +226,10 @@ const VENDOR = /\b(Qwen[0-9.]*|Alibaba(?: Cloud)?|OpenAI|ChatGPT|GPT-?[0-9.]*|Go
 
 /**
  * A 0.5B model will sometimes name its own vendor no matter what the prompt
- * says. This is the guarantee: companion replies never surface a third-party
- * model or company name, whatever the weights decide to say.
+ * says. This is the guarantee for the Cygnus-trained weights: their replies
+ * never surface a third-party model or company name, whatever the weights
+ * decide to say. Other models must not be filtered: pretending Granite is
+ * Cygnus is the bug this guard used to cause.
  */
 export function sanitizeCompanionReply(text: string): string {
   if (!text) return text;
@@ -128,8 +241,9 @@ export function sanitizeCompanionReply(text: string): string {
 export function buildSystemPrompt(
   files: FileEntry[],
   mode: BuildMode = "build",
+  identity: ModelIdentity | null = null,
 ): string {
-  const rules = `${RULES}${MODE_RULES[mode]}`;
+  const rules = `${roleLine(identity)}\n${RULES}${MODE_RULES[mode]}`;
   if (files.length === 0) {
     return `${rules}
 

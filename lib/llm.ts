@@ -76,6 +76,25 @@ function cleanToolName(name: string): string {
   return (marker >= 0 ? name.slice(0, marker) : name).trim();
 }
 
+function isLoopback(baseUrl: string): boolean {
+  try {
+    const host = new URL(normalizeBaseUrl(baseUrl)).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "0.0.0.0";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A 3B model on a 4-core CPU writes about 1.7 tokens per second. A single
+ * write_file call can take ten minutes, so the cloud-sized four-minute limit
+ * would abort a build that is working correctly. Local engines get thirty
+ * minutes per turn; hosted and BYOK endpoints keep the shorter limit.
+ */
+function turnTimeoutMs(baseUrl: string): number {
+  return isLoopback(baseUrl) ? 30 * 60_000 : 240_000;
+}
+
 function requestTargets(provider: ProviderConfig): CompletionTarget[] {
   if (provider.baseUrl === HOSTED_BASE_URL) {
     return hostedUpstreams(provider.model).map((entry) => ({
@@ -103,7 +122,7 @@ async function openCompletion(options: {
     headers.Authorization = `Bearer ${apiKey.trim()}`;
   }
 
-  const timeout = AbortSignal.timeout(240_000);
+  const timeout = AbortSignal.timeout(turnTimeoutMs(target.baseUrl));
   const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
 
   const payload: Record<string, unknown> = {
@@ -283,6 +302,13 @@ export async function streamModelTurn(options: {
     } catch (error) {
       lastError = error;
       if (signal?.aborted) throw error;
+      const message = error instanceof Error ? error.message : "";
+      if (/aborted|timed? ?out/i.test(message)) {
+        const minutes = Math.round(turnTimeoutMs(targets[index].baseUrl) / 60_000);
+        throw new Error(
+          `The model did not finish within ${minutes} minutes on one response. On-device models are slow on CPU; try a smaller model, ask for a smaller change, or press Stop and continue.`,
+        );
+      }
       // Hosted routes are shared free capacity. Try the next backend before
       // surfacing a failure; never retry after a stream has started.
       if (!hosted || index === targets.length - 1) {

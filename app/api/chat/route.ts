@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { testProject } from "@/lib/appTest";
 import { runDemo } from "@/lib/demo";
 import { streamCygnusChat, type CygnusChatTurn } from "@/lib/cygnus05";
 import { isCygnusLocalProvider } from "@/lib/cygnus05Shared";
@@ -12,6 +13,8 @@ import { createSnapshot } from "@/lib/snapshots";
 import {
   buildCompanionPrompt,
   buildSystemPrompt,
+  conflictsWithIdentity,
+  describeModel,
   sanitizeCompanionReply,
 } from "@/lib/systemPrompt";
 import {
@@ -255,13 +258,19 @@ export async function POST(request: NextRequest) {
 
         const toolsAllowed = modelSupportsTools(normalizedProvider.model);
         const companion = !toolsAllowed;
+        // Only the Cygnus-trained weights may introduce themselves as Cygnus.
+        // A downloaded Granite or Llama model keeps its real name and maker.
+        const identity = describeModel(normalizedProvider.model);
         // A chat-only model may read the project, never write to it.
         const companionTools = toolDefinitions.filter((tool) =>
           COMPANION_TOOL_ALLOWLIST.has(tool.function.name),
         );
         const systemPrompt = toolsAllowed
-          ? buildSystemPrompt(filesWithContent, mode)
-          : buildCompanionPrompt(companionTools.map((tool) => tool.function.name));
+          ? buildSystemPrompt(filesWithContent, mode, identity)
+          : buildCompanionPrompt(
+              companionTools.map((tool) => tool.function.name),
+              identity,
+            );
         const activeTools = companion
           ? companionTools
           : mode === "chat"
@@ -272,6 +281,13 @@ export async function POST(request: NextRequest) {
         const priorMessages = history
           .slice(toolsAllowed ? -16 : -8)
           .filter((entry) => entry.content.trim().length > 0)
+          // A reply from the model the user just switched away from must not
+          // teach the new model to claim that identity.
+          .filter(
+            (entry) =>
+              entry.role !== "assistant" ||
+              !conflictsWithIdentity(entry.content, identity),
+          )
           .map((entry) => ({ role: entry.role, content: entry.content }));
 
         const wire: WireMessage[] = [
@@ -404,14 +420,51 @@ export async function POST(request: NextRequest) {
         }
 
         if (companion) {
-          assistantText = sanitizeCompanionReply(assistantText);
+          if (identity?.own) assistantText = sanitizeCompanionReply(assistantText);
           if (assistantText) {
             appendText(assistantText);
             send({ type: "text", value: assistantText });
           }
         }
 
+        // The model can say "the test passed" even after a failing tool result.
+        // Run the check once against the files as they actually are and put the
+        // real result in the transcript, so a broken app is never presented as
+        // finished.
         const finalFiles = await listFiles(projectId);
+        // Run on every build turn, not only when a tool was called: a small
+        // model will otherwise claim "tests passed" without ever running one.
+        if (mode === "build" && finalFiles.length > 0) {
+          try {
+            const result = await testProject(projectId, request.nextUrl.origin);
+            const event: ToolEvent = {
+              name: "test_app",
+              ok: result.ok,
+              message: result.summary,
+              detail: result.report,
+              kind: "test",
+            };
+            toolsUsed.push(event);
+            timeline.push({ type: "tool", tool: event });
+            send({ type: "tool", ...event });
+            if (!result.ok) {
+              const failures = result.report
+                .split("\n")
+                .filter((line) => line.startsWith("FAIL"));
+              const note = `\n\nApp test after the build found ${result.issues} issue${
+                result.issues === 1 ? "" : "s"
+              }. The app is not finished yet:\n${failures
+                .map((line) => `- ${line.replace(/^FAIL\s+/, "")}`)
+                .join("\n")}`;
+              assistantText += note;
+              appendText(note);
+              send({ type: "text", value: note });
+            }
+          } catch {
+            // A broken check must never break the turn.
+          }
+        }
+
         await appendChat(projectId, {
           role: "assistant",
           content: assistantText,

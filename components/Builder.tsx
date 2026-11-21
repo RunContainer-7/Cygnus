@@ -374,6 +374,15 @@ export default function Builder({
         );
       }
     } finally {
+      // A turn can fail or be stopped after some files were written. Refresh
+      // the project and the preview so the user sees what actually exists
+      // instead of the page from before the turn.
+      void fetch(`/api/projects/${projectId}`, { cache: "no-store" })
+        .then(async (response) => {
+          if (response.ok) setProject((await response.json()) as ProjectData);
+        })
+        .catch(() => undefined);
+      setRelease((value) => value + 1);
       setMessages((previous) =>
         updateLast(previous, (message) => ({
           ...message,

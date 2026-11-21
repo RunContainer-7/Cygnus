@@ -469,6 +469,10 @@ async function startEngine(): Promise<OpenSourceEngineStatus> {
         OLLAMA_HOST: `${ENGINE_HOST}:${ENGINE_PORT}`,
         OLLAMA_MODELS: modelsDir(),
         OLLAMA_KEEP_ALIVE: "10m",
+        // Ollama defaults to a 4096-token context. Cygnus's builder prompt and
+        // one tool result already fill that, which silently truncates the
+        // system rules mid-build. Give local models room for a full turn.
+        OLLAMA_CONTEXT_LENGTH: "16384",
       },
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],

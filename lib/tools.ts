@@ -251,7 +251,7 @@ export const toolDefinitions = [
     function: {
       name: "test_app",
       description:
-        "Test the generated app directly. Checks that index.html exists, local asset references resolve, scripts compile, CSS blocks balance, no placeholders remain, and the preview route serves the page. Run this after a batch of writes and fix every failure.",
+        "Test the generated app directly. Checks that index.html exists, local asset references resolve, scripts compile, CSS blocks balance, no placeholders remain, the preview route serves the page, forms cannot reload the page, every selector targets an element that exists, and every button is wired to a click handler. Run this after a batch of writes and fix every failure.",
       parameters: {
         type: "object",
         properties: {
