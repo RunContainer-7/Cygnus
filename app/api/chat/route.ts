@@ -176,6 +176,7 @@ export async function POST(request: NextRequest) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const turnStartedAt = new Date().toISOString();
       let closed = false;
       const send = (event: unknown) => {
         if (closed) return;
@@ -207,6 +208,9 @@ export async function POST(request: NextRequest) {
             role: "assistant",
             content: result.content,
             tools: result.tools,
+            startedAt: turnStartedAt,
+            endedAt: new Date().toISOString(),
+            ...(result.events.length > 0 ? { events: result.events } : {}),
           });
           const files = await listFiles(projectId);
           send({ type: "done", files: files.length, truncated: false, rounds: 0 });
@@ -241,7 +245,12 @@ export async function POST(request: NextRequest) {
               "Cygnus 0.5 Femto did not produce a reply. This experimental model is still learning; try a shorter prompt, or pick Cygnus 0.5 for conversation.",
             );
           }
-          await appendChat(projectId, { role: "assistant", content });
+          await appendChat(projectId, {
+            role: "assistant",
+            content,
+            startedAt: turnStartedAt,
+            endedAt: new Date().toISOString(),
+          });
           const files = await listFiles(projectId);
           send({ type: "done", files: files.length, truncated: false, rounds: 0 });
           return;
@@ -468,6 +477,8 @@ export async function POST(request: NextRequest) {
         await appendChat(projectId, {
           role: "assistant",
           content: assistantText,
+          startedAt: turnStartedAt,
+          endedAt: new Date().toISOString(),
           ...(timeline.length > 0 ? { events: timeline } : {}),
           tools: toolsUsed,
           ...(assistantReasoning.length > 0 ? { reasoning: assistantReasoning } : {}),
@@ -489,6 +500,8 @@ export async function POST(request: NextRequest) {
         await appendChat(projectId, {
           role: "assistant",
           content: "",
+          startedAt: turnStartedAt,
+          endedAt: new Date().toISOString(),
           error: detail,
         }).catch(() => undefined);
       } finally {

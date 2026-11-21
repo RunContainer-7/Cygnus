@@ -1,7 +1,7 @@
 import { buildLandingDemo } from "./demos/landing";
 import { sleep } from "./demos/shared";
 import { buildTasksDemo } from "./demos/tasks";
-import type { ToolEvent } from "./types";
+import type { ChatEvent, ToolEvent } from "./types";
 import { writeFileSafe } from "./workspace";
 
 type Send = (event: Record<string, unknown>) => void;
@@ -12,10 +12,11 @@ export async function runDemo(
   projectId: string,
   prompt: string,
   send: Send,
-): Promise<{ content: string; tools: ToolEvent[] }> {
+): Promise<{ content: string; tools: ToolEvent[]; events: ChatEvent[] }> {
   const isTaskApp = TASK_PATTERN.test(prompt);
   const demo = isTaskApp ? buildTasksDemo(prompt) : buildLandingDemo(prompt);
   const tools: ToolEvent[] = [];
+  const events: ChatEvent[] = [];
 
   await sleep(260);
 
@@ -28,6 +29,7 @@ export async function runDemo(
       message: `Wrote ${file.path}`,
     };
     tools.push(event);
+    events.push({ type: "tool", tool: event });
     send({ type: "tool", ...event });
     await sleep(240);
   }
@@ -36,6 +38,7 @@ export async function runDemo(
     ? "Offline demo — I wrote a working task board so you can try the workspace without a model key. It saves to localStorage and the preview updates live. Add a provider in Settings and ask again to build exactly what you described."
     : "Offline demo — I wrote a sample landing page so you can try the workspace without a model key. Add a provider in Settings and ask again to build exactly what you described.";
 
+  events.push({ type: "text", text: content });
   send({ type: "text", value: content });
-  return { content, tools };
+  return { content, tools, events };
 }

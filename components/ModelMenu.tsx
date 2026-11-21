@@ -35,7 +35,7 @@ type ByokResult = {
 };
 
 const ACCESS_TABS: Array<{ id: MenuTab; label: string; sub: string }> = [
-  { id: "open", label: "Open source", sub: "On this PC" },
+  { id: "open", label: "Models", sub: "Cloud + on this PC" },
   { id: "local", label: "Local", sub: "Servers you run" },
   { id: "byok", label: "BYOK", sub: "One key" },
 ];
@@ -92,13 +92,19 @@ export default function ModelMenu({
   const [engineError, setEngineError] = useState<string | null>(null);
   const [engineLoading, setEngineLoading] = useState(true);
   const [task, setTask] = useState<TaskState | null>(null);
+  const [query, setQuery] = useState("");
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const choiceToken = useRef(0);
 
   const counts = useMemo<Record<MenuTab, number>>(() => {
     return OPEN_SOURCE_MODELS.reduce(
       (result, entry) => {
-        if (entry.access === "hosted" || entry.access === "open" || entry.access === "cygnus") {
+        if (
+          entry.access === "hosted" ||
+          entry.access === "open" ||
+          entry.access === "cygnus" ||
+          entry.access === "demo"
+        ) {
           result.open += 1;
         } else if (entry.access === "local") result.local += 1;
         return result;
@@ -110,7 +116,10 @@ export default function ModelMenu({
   const visible = useMemo(() => {
     return OPEN_SOURCE_MODELS.filter((entry) =>
       access === "open"
-        ? entry.access === "hosted" || entry.access === "open" || entry.access === "cygnus"
+        ? entry.access === "hosted" ||
+          entry.access === "open" ||
+          entry.access === "cygnus" ||
+          entry.access === "demo"
         : entry.access === access,
     ).sort(
       (left, right) =>
@@ -125,8 +134,36 @@ export default function ModelMenu({
     return new Set((engineStatus?.models ?? []).map(normalizeModelName));
   }, [engineStatus]);
 
+  const isActive = (entry: OpenModel) => {
+    if (entry.access === "cygnus") {
+      return provider.baseUrl === CYGNUS_LOCAL_BASE_URL && entry.model === provider.model;
+    }
+    if (entry.access === "open") {
+      // The same model connected through a raw Ollama endpoint is a different
+      // selection with a different label, so match the engine endpoint too.
+      return (
+        normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl) &&
+        entry.model === provider.model
+      );
+    }
+    if (entry.access === "local") {
+      return normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl);
+    }
+    return (
+      entry.model === provider.model &&
+      normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl)
+    );
+  };
+
+  const isInstalled = (entry: OpenModel) =>
+    entry.access === "cygnus" ||
+    (entry.access === "open" &&
+      Boolean(entry.tag) &&
+      installedTags.has(normalizeModelName(entry.tag!)));
+
   useEffect(() => {
-    dialogRef.current?.focus();
+    const search = dialogRef.current?.querySelector<HTMLInputElement>(".mp-search input");
+    (search ?? dialogRef.current)?.focus();
     return () => {
       choiceToken.current += 1;
     };
@@ -211,7 +248,22 @@ export default function ModelMenu({
   }
 
   async function choose(entry: OpenModel) {
+    // Clicking the model that is already selected is a no-op, not a reinstall.
+    if (isActive(entry)) {
+      onClose();
+      return;
+    }
     const token = ++choiceToken.current;
+    if (entry.access === "demo") {
+      chooseProvider({
+        baseUrl: "demo",
+        model: entry.model,
+        apiKey: "",
+        label: "Offline demo",
+      });
+      onClose();
+      return;
+    }
     if (entry.access === "cygnus") {
       chooseProvider({
         baseUrl: CYGNUS_LOCAL_BASE_URL,
@@ -226,6 +278,18 @@ export default function ModelMenu({
     const apiKey = entry.access === "byok" ? loadProviderKey(baseUrl) : "";
 
     if (entry.access === "open") {
+      // A model the engine already reports as installed needs no download or
+      // install stream; switching to it must be instant.
+      if (isInstalled(entry)) {
+        chooseProvider({
+          baseUrl,
+          model: entry.model,
+          apiKey: "",
+          label: entry.name,
+        });
+        onClose();
+        return;
+      }
       await prepareOpenModel(entry, token);
       return;
     }
@@ -395,28 +459,29 @@ export default function ModelMenu({
 
   if (typeof document === "undefined") return null;
 
-  const hostedEntries = visible.filter((entry) => entry.access === "hosted");
-  const cygnusEntries = visible.filter((entry) => entry.access === "cygnus");
+  const needle = query.trim().toLowerCase();
+  const matching = needle
+    ? visible.filter((entry) =>
+        `${entry.name} ${entry.family ?? ""} ${entry.provider} ${entry.note} ${entry.model}`
+          .toLowerCase()
+          .includes(needle),
+      )
+    : visible;
+  const hostedEntries = matching.filter((entry) => entry.access === "hosted");
+  const demoEntries = matching.filter((entry) => entry.access === "demo");
+  const cygnusEntries = matching.filter((entry) => entry.access === "cygnus");
   // Cygnus-family entries run on the local engine like any other on-device
   // model, but they belong in Labs beside the from-scratch one.
-  const cygnusLabEntries = visible.filter(
+  const cygnusLabEntries = matching.filter(
     (entry) => entry.access === "open" && entry.family === "Cygnus",
   );
-  const onDeviceEntries = visible.filter(
+  const onDeviceEntries = matching.filter(
     (entry) => entry.access === "open" && entry.family !== "Cygnus",
   );
   const totalRamGb = engineStatus?.totalRamGb ?? 0;
 
   const renderRow = (entry: OpenModel) => {
-    const active =
-      entry.access === "cygnus"
-        ? provider.baseUrl === CYGNUS_LOCAL_BASE_URL && entry.model === provider.model
-        : entry.access === "open"
-          ? isLocalEndpoint(provider.baseUrl) && entry.model === provider.model
-          : entry.access === "local"
-            ? normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl)
-            : entry.model === provider.model &&
-              normalizeBaseUrl(entry.baseUrl) === normalizeBaseUrl(provider.baseUrl);
+    const active = isActive(entry);
     const hasKey =
       entry.access === "byok" ? Boolean(loadProviderKey(entry.baseUrl)) : false;
     const capabilityBlocked = entry.access === "open" && entry.kind === "ocr";
@@ -435,11 +500,7 @@ export default function ModelMenu({
       : ramBlocked
         ? `Needs about ${entry.minRamGb} GB of RAM`
         : undefined;
-    const installed =
-      entry.access === "cygnus" ||
-      (entry.access === "open" &&
-        Boolean(entry.tag) &&
-        installedTags.has(normalizeModelName(entry.tag!)));
+    const installed = isInstalled(entry);
     const rowTask = task?.id === entry.id ? task : null;
 
     return (
@@ -498,6 +559,7 @@ export default function ModelMenu({
               className={`mp-access-tab ${access === item.id ? "active" : ""}`}
               onClick={() => {
                 setAccess(item.id);
+                setQuery("");
                 setDiscoveryError(null);
               }}
             >
@@ -521,12 +583,42 @@ export default function ModelMenu({
         </div>
 
         <div className="mp-scroll" role="tabpanel" aria-label="Model options">
+          {access !== "byok" ? (
+            <label className="mp-search">
+              <Icon name="search" size={14} />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={access === "local" ? "Search local runtimes" : "Search models"}
+                aria-label="Search models"
+                spellCheck={false}
+                autoFocus
+              />
+              {query ? (
+                <button type="button" onClick={() => setQuery("")} aria-label="Clear search">
+                  ×
+                </button>
+              ) : null}
+            </label>
+          ) : null}
+
+          {access !== "byok" && matching.length === 0 ? (
+            <p className="mp-empty">No models match “{query.trim()}”.</p>
+          ) : null}
+
           {access === "open" ? (
             <>
               {hostedEntries.length > 0 ? (
                 <>
                   <div className="mp-group-label">Free cloud · no key</div>
                   {hostedEntries.map(renderRow)}
+                </>
+              ) : null}
+
+              {demoEntries.length > 0 ? (
+                <>
+                  <div className="mp-group-label">No model · works offline</div>
+                  {demoEntries.map(renderRow)}
                 </>
               ) : null}
 
@@ -569,7 +661,7 @@ export default function ModelMenu({
           ) : access === "local" ? (
             <>
               <div className="mp-group-label">Connect a local runtime</div>
-              {visible.map(renderRow)}
+              {matching.map(renderRow)}
               <p className="mp-engine-note">
                 This tab connects to a server you already run: Ollama or LM Studio.
                 The On this PC tab needs neither.
@@ -766,13 +858,13 @@ function ModelRow({
   const lane =
     entry.family === "Cygnus"
       ? "cygnus"
-      : entry.access === "hosted"
+      : entry.access === "hosted" || entry.access === "demo"
         ? "cloud"
         : entry.access === "byok"
           ? "byok"
           : "local";
   const subtitle =
-    entry.access === "hosted"
+    entry.access === "hosted" || entry.access === "demo"
       ? entry.note
       : entry.access === "open"
         ? `${entry.family ?? "Open"} · ${entry.size ?? "local"} · ${entry.note}`
@@ -835,6 +927,9 @@ function ModelRow({
           <span className="mp-key-hint">Connect</span>
         ) : null}
         {!busy && !blocked && needsKey ? <span className="mp-key-hint">Add key</span> : null}
+        {!busy && !blocked && entry.access === "demo" ? (
+          <span className="mp-key-hint">No key</span>
+        ) : null}
         {active ? (
           <span className="mp-check" aria-label="Selected">
             <Icon name="check" size={13} />

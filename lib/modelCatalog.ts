@@ -16,7 +16,7 @@ import {
 } from "./openSource";
 
 export type ModelTier = HostedTier;
-export type ModelAccess = "hosted" | "open" | "cygnus" | "local" | "byok";
+export type ModelAccess = "hosted" | "open" | "cygnus" | "local" | "byok" | "demo";
 
 export type OpenModel = {
   id: string;
@@ -122,6 +122,17 @@ export const OPEN_SOURCE_MODELS: OpenModel[] = [
   ...HOSTED_ENTRIES,
   ...CYGNUS_ENTRIES,
   ...ON_DEVICE_ENTRIES,
+  {
+    id: "offline-demo",
+    name: "Offline demo",
+    provider: "Cygnus",
+    baseUrl: "demo",
+    model: "cygnus-demo",
+    tier: "low",
+    access: "demo",
+    badge: "No model",
+    note: "Writes a sample project with no model call. Useful when every engine and key is unavailable.",
+  },
   {
     id: "local-ollama",
     name: "Ollama",

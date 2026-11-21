@@ -32,15 +32,28 @@ type StreamResult = {
 function reasoningDelta(delta: {
   reasoning?: unknown;
   reasoning_content?: unknown;
+  thinking?: unknown;
+  reasoning_details?: unknown;
 }): string {
   if (typeof delta.reasoning === "string") return delta.reasoning;
   if (typeof delta.reasoning_content === "string") return delta.reasoning_content;
+  // Ollama's thinking models expose the channel as `thinking`.
+  if (typeof delta.thinking === "string") return delta.thinking;
   if (
     delta.reasoning &&
     typeof delta.reasoning === "object" &&
     typeof (delta.reasoning as { text?: unknown }).text === "string"
   ) {
     return (delta.reasoning as { text: string }).text;
+  }
+  if (Array.isArray(delta.reasoning_details)) {
+    return delta.reasoning_details
+      .map((part) =>
+        part && typeof part === "object" && typeof (part as { text?: unknown }).text === "string"
+          ? (part as { text: string }).text
+          : "",
+      )
+      .join("");
   }
   return "";
 }
@@ -211,6 +224,8 @@ async function parseStream(
           content?: string | null;
           reasoning?: unknown;
           reasoning_content?: unknown;
+          thinking?: unknown;
+          reasoning_details?: unknown;
           tool_calls?: Array<{
             index?: number;
             id?: string;

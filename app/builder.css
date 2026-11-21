@@ -1917,32 +1917,36 @@
   order: 0;
 }
 
-.msg.assistant > .chat-status {
+.msg.assistant > .reasoning-block {
   order: 1;
 }
 
-.msg.assistant > .assistant-bubble {
+.msg.assistant > .narration {
   order: 2;
 }
 
-.msg.assistant > .msg-actions {
+.msg.assistant > .chat-status {
   order: 3;
 }
 
-.msg.assistant > .ask-card {
+.msg.assistant > .assistant-bubble {
   order: 4;
 }
 
-.msg.assistant > .reasoning-block {
+.msg.assistant > .msg-actions {
   order: 5;
 }
 
-.msg.assistant > .agent-list {
+.msg.assistant > .ask-card {
   order: 6;
 }
 
-.msg.assistant > .tool-list {
+.msg.assistant > .agent-list {
   order: 7;
+}
+
+.msg.assistant > .tool-list {
+  order: 8;
   margin-top: 2px;
   padding-top: 0;
   border-top: 0;

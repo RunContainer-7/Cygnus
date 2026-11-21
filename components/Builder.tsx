@@ -117,6 +117,7 @@ export default function Builder({
   const [duplicating, setDuplicating] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  const chatHydrated = useRef(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -133,7 +134,13 @@ export default function Builder({
     }
     const data = (await response.json()) as ProjectData;
     setProject(data);
-    setMessages(data.chat ?? []);
+    // Load the saved transcript once. A slower duplicate refresh (React's dev
+    // double-effect, or a manual refresh during a turn) must never replace the
+    // live transcript with the copy that existed before the turn started.
+    if (!chatHydrated.current) {
+      chatHydrated.current = true;
+      setMessages(data.chat ?? []);
+    }
     return data;
   }, [projectId]);
 
@@ -168,7 +175,12 @@ export default function Builder({
     setMessages((previous) => [
       ...previous,
       { role: "user", content: text },
-      { role: "assistant", content: "", tools: [] },
+      {
+        role: "assistant",
+        content: "",
+        tools: [],
+        startedAt: new Date().toISOString(),
+      },
     ]);
 
     const controller = new AbortController();
@@ -196,7 +208,17 @@ export default function Builder({
         if (event.type === "status" && typeof event.text === "string") {
           const activity = event.text;
           setMessages((previous) =>
-            updateLast(previous, (message) => ({ ...message, activity })),
+            updateLast(previous, (message) => {
+              const activities = message.activities ?? [];
+              return {
+                ...message,
+                activity,
+                activities:
+                  activities[activities.length - 1] === activity
+                    ? activities
+                    : [...activities, activity].slice(-40),
+              };
+            }),
           );
           return;
         }
@@ -329,6 +351,12 @@ export default function Builder({
           return;
         }
         if (event.type === "done") {
+          setMessages((previous) =>
+            updateLast(previous, (message) => ({
+              ...message,
+              endedAt: message.endedAt ?? new Date().toISOString(),
+            })),
+          );
           if (event.truncated) {
             const rounds = typeof event.rounds === "number" ? event.rounds : 10;
             setMessages((previous) =>
@@ -372,6 +400,9 @@ export default function Builder({
         setMessages((previous) =>
           updateLast(previous, (message) => ({ ...message, error: message.error ?? detail })),
         );
+        // Put the prompt back so a provider failure does not erase what the
+        // user typed.
+        setInput((current) => current || text);
       }
     } finally {
       // A turn can fail or be stopped after some files were written. Refresh
@@ -386,6 +417,7 @@ export default function Builder({
       setMessages((previous) =>
         updateLast(previous, (message) => ({
           ...message,
+          endedAt: message.endedAt ?? new Date().toISOString(),
           asks: message.asks?.map((ask) =>
             ask.status === "pending" ? { ...ask, status: "cancelled" as const } : ask,
           ),
@@ -827,35 +859,54 @@ export default function Builder({
                   {message.blueprint && message.blueprint.length > 0 ? (
                     <BlueprintCard tasks={message.blueprint} />
                   ) : null}
-                  {busy &&
-                  index === messages.length - 1 &&
-                  message.activity &&
-                  !(message.events && message.events.length > 0) ? (
-                    <div className="chat-status" role="status">
-                      <span className="chat-status-dot" aria-hidden="true" />
-                      <span>{message.activity}</span>
-                    </div>
-                  ) : null}
-                  {message.reasoning && message.reasoning.length > 0 ? (
-                    <ReasoningBlock
-                      nodes={message.reasoning}
-                      live={busy && index === messages.length - 1}
-                    />
-                  ) : null}
-                  {message.events && message.events.length > 0 ? (
-                    <Narration
-                      events={message.events}
-                      activity={message.activity}
-                      content={message.content}
-                      live={busy && index === messages.length - 1}
-                      onOpen={(path) => {
-                        setDrawerFile(path);
-                        setFilesOpen(true);
-                      }}
-                    />
-                  ) : message.content ? (
-                    <div className="bubble assistant-bubble">{message.content}</div>
-                  ) : null}
+                  {(() => {
+                    const liveMessage = busy && index === messages.length - 1;
+                    const showThinking =
+                      Boolean(message.reasoning && message.reasoning.length > 0) ||
+                      (liveMessage &&
+                        Boolean(
+                          (message.activities && message.activities.length > 0) ||
+                            message.activity,
+                        ));
+                    return (
+                      <>
+                        {liveMessage &&
+                        message.activity &&
+                        !showThinking &&
+                        !(message.events && message.events.length > 0) ? (
+                          <div className="chat-status" role="status">
+                            <span className="chat-status-dot" aria-hidden="true" />
+                            <span>{message.activity}</span>
+                          </div>
+                        ) : null}
+                        {showThinking ? (
+                          <ThinkingBlock
+                            nodes={message.reasoning ?? []}
+                            activities={message.activities ?? []}
+                            live={liveMessage}
+                            startedAt={message.startedAt}
+                            endedAt={message.endedAt}
+                          />
+                        ) : null}
+                        {message.events && message.events.length > 0 ? (
+                          <Narration
+                            events={message.events}
+                            activity={message.activity}
+                            content={message.content}
+                            live={liveMessage}
+                            startedAt={message.startedAt}
+                            endedAt={message.endedAt}
+                            onOpen={(path) => {
+                              setDrawerFile(path);
+                              setFilesOpen(true);
+                            }}
+                          />
+                        ) : message.content ? (
+                          <div className="bubble assistant-bubble">{message.content}</div>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                   {message.content ? (
                     <div className="msg-actions">
                       <button
@@ -930,6 +981,7 @@ export default function Builder({
                   !message.error &&
                   !(message.asks?.some((ask) => ask.status === "pending")) &&
                   !(message.events && message.events.length > 0) &&
+                  !(message.activities && message.activities.length > 0) &&
                   busy &&
                   index === messages.length - 1 ? (
                     <div className="typing" aria-label="Cygnus is working">
@@ -1507,23 +1559,48 @@ function BlueprintCard({ tasks }: { tasks: BlueprintTask[] }) {
   );
 }
 
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.max(1, Math.round(seconds))}s`;
+  const minutes = Math.floor(seconds / 60);
+  const rest = Math.round(seconds % 60);
+  return `${minutes}m ${String(rest).padStart(2, "0")}s`;
+}
+
+function useElapsed(startedAt?: string, endedAt?: string, live?: boolean): number | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!live) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [live]);
+  if (!startedAt) return null;
+  const start = new Date(startedAt).getTime();
+  if (!Number.isFinite(start)) return null;
+  const end = endedAt ? new Date(endedAt).getTime() : live ? now : start;
+  return Math.max(0, (end - start) / 1000);
+}
+
 function Narration({
   events,
   activity,
   content,
   live,
+  startedAt,
+  endedAt,
   onOpen,
 }: {
   events: ChatEvent[];
   activity?: string;
   content: string;
   live: boolean;
+  startedAt?: string;
+  endedAt?: string;
   onOpen: (path: string) => void;
 }) {
   const steps: ToolEvent[] = [];
   let narration = "";
-  // Text written after the last tool call is the closing answer; earlier text
-  // is checkpoint narration and stays out of the final transcript.
+  // Text after the last tool call is the closing answer; earlier text is
+  // checkpoint narration and stays out of the final transcript.
   let closing = "";
   for (const event of events) {
     if (event.type === "tool") {
@@ -1535,28 +1612,57 @@ function Narration({
     }
   }
   narration = narration.replace(/\s+/g, " ").trim();
-  closing = closing.replace(/\s+/g, " ").trim();
-  // Freebuff shape: one live line while working, then a collapsed step log and
-  // the answer. Intermediate narration never piles up in the transcript.
-  const reply = content.trim() ? closing || content.trim() : closing || narration;
-  const line = live ? latestSentence(narration) || activity || "Working\u2026" : "";
-  // While the turn is streaming, the checkpoint line is the only prose on
-  // screen. The bubble appears once the turn ends, so the live line and the
-  // half-written answer never show the same sentence twice.
-  const showReply = Boolean(reply) && !live;
+  closing = closing.trim();
+  const elapsed = useElapsed(startedAt, endedAt, live);
 
-  return (
-    <div className={`narration ${live ? "live" : ""}`}>
-      {line ? (
-        <p className="narration-line" role={live ? "status" : undefined}>
-          {live ? <span className="narration-dot" aria-hidden="true" /> : null}
+  // Freebuff shape while a turn runs: a live status line and the ordered
+  // stream (text as it is written, tool rows as they finish). Nothing is held
+  // back until the turn ends.
+  if (live) {
+    const last = events[events.length - 1];
+    const line =
+      activity ||
+      (last?.type === "tool" ? last.tool.message : "") ||
+      "Working\u2026";
+    return (
+      <div className="narration live">
+        <p className="narration-line" role="status">
+          <span className="narration-dot" aria-hidden="true" />
           <span>{line}</span>
+          {elapsed !== null ? (
+            <span className="narration-time">{formatDuration(elapsed)}</span>
+          ) : null}
         </p>
-      ) : null}
+        <div className="narration-live">
+          {events.map((event, index) =>
+            event.type === "text" ? (
+              event.text.trim() ? (
+                <div className="bubble assistant-bubble narration-text" key={`text-${index}`}>
+                  {event.text}
+                </div>
+              ) : null
+            ) : (
+              <ToolLine
+                key={`tool-${index}`}
+                tool={event.tool}
+                onOpen={() => {
+                  if (event.tool.path) onOpen(event.tool.path);
+                }}
+              />
+            ),
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const reply = content.trim() ? closing || content.trim() : closing || narration;
+  return (
+    <div className="narration">
       {steps.length > 0 ? (
         <details className="narration-steps">
           <summary>
-            <span>{live ? "Working" : "Worked"}</span>
+            <span>Worked{elapsed !== null ? ` for ${formatDuration(elapsed)}` : ""}</span>
             <em>
               {steps.length} step{steps.length === 1 ? "" : "s"}
             </em>
@@ -1574,16 +1680,9 @@ function Narration({
           </div>
         </details>
       ) : null}
-      {showReply ? <div className="bubble assistant-bubble">{reply}</div> : null}
+      {reply ? <div className="bubble assistant-bubble">{reply}</div> : null}
     </div>
   );
-}
-
-function latestSentence(text: string): string {
-  if (!text) return "";
-  const cut = Math.max(text.lastIndexOf(". "), text.lastIndexOf("! "), text.lastIndexOf("? "));
-  const tail = cut >= 0 ? text.slice(cut + 2) : text;
-  return tail.length > 180 ? `\u2026${tail.slice(-180)}` : tail;
 }
 
 function ToolLine({ tool, onOpen }: { tool: ToolEvent; onOpen: () => void }) {
@@ -1605,55 +1704,88 @@ function ToolLine({ tool, onOpen }: { tool: ToolEvent; onOpen: () => void }) {
   );
 }
 
-function ReasoningBlock({ nodes, live }: { nodes: ReasoningNode[]; live: boolean }) {
-  const tail = nodes[nodes.length - 1]?.text ?? "";
+function ThinkingBlock({
+  nodes,
+  activities,
+  live,
+  startedAt,
+  endedAt,
+}: {
+  nodes: ReasoningNode[];
+  activities: string[];
+  live: boolean;
+  startedAt?: string;
+  endedAt?: string;
+}) {
+  const elapsed = useElapsed(startedAt, endedAt, live);
+  const tail = nodes[nodes.length - 1]?.text ?? activities[activities.length - 1] ?? "";
   const preview = live ? tail.replace(/\s+/g, " ").trim().slice(-90) : "";
+  const title = live
+    ? "Thinking\u2026"
+    : elapsed !== null
+      ? `Thought for ${formatDuration(elapsed)}`
+      : "Thoughts";
+  const log = activities.filter(Boolean);
 
   return (
-    <details className={`reasoning-block ${live ? "live" : ""}`}>
-      <summary>
+    <details className={`thinking-block reasoning-block ${live ? "live" : ""}`}>
+      <summary aria-label={live ? "Open the model's live thinking" : "Open the model's thoughts"}>
         <span className="reasoning-title">
-          {live ? (
-            <>
-              <i className="reasoning-pulse" aria-hidden="true" />
-              Thinking…
-            </>
-          ) : (
-            "Reasoning"
-          )}
+          {live ? <i className="reasoning-pulse" aria-hidden="true" /> : null}
+          {title}
         </span>
         {preview ? <span className="reasoning-preview">{preview}</span> : null}
-        <em>
-          {nodes.length} layer{nodes.length === 1 ? "" : "s"}
-        </em>
+        <span className="thinking-chevron" aria-hidden="true">
+          ⌄
+        </span>
       </summary>
-      <div className="reasoning-list">
-        {nodes.map((node, index) => {
-          const label = node.label ?? (node.depth === 0 ? "Thinking" : `Layer ${node.depth}`);
-          if (node.depth === 0) {
+      <div className="thinking-body">
+        {nodes.length === 0 ? (
+          <p className="thinking-empty">
+            {live
+              ? "This model does not stream a private thought channel. Its live progress is below."
+              : "This model did not return a separate thought stream."}
+          </p>
+        ) : null}
+        <div className="reasoning-list">
+          {nodes.map((node, index) => {
+            const label = node.label ?? (node.depth === 0 ? "Thinking" : `Layer ${node.depth}`);
+            if (node.depth === 0) {
+              return (
+                <div className="reasoning-node" key={`${node.depth}-${index}`}>
+                  <span className="reasoning-depth">{label}</span>
+                  <p>{node.text}</p>
+                </div>
+              );
+            }
             return (
-              <div className="reasoning-node" key={`${node.depth}-${index}`}>
-                <span className="reasoning-depth">{label}</span>
+              <details
+                className="reasoning-node nested"
+                key={`${node.depth}-${index}`}
+                style={{ marginLeft: Math.min(node.depth, 8) * 12 }}
+              >
+                <summary>
+                  <span className="reasoning-depth">{label}</span>
+                  <span className="reasoning-peek">
+                    {node.text.replace(/\s+/g, " ").trim().slice(0, 110)}
+                  </span>
+                </summary>
                 <p>{node.text}</p>
-              </div>
+              </details>
             );
-          }
-          return (
-            <details
-              className="reasoning-node nested"
-              key={`${node.depth}-${index}`}
-              style={{ marginLeft: Math.min(node.depth, 8) * 12 }}
-            >
-              <summary>
-                <span className="reasoning-depth">{label}</span>
-                <span className="reasoning-peek">
-                  {node.text.replace(/\s+/g, " ").trim().slice(0, 110)}
-                </span>
-              </summary>
-              <p>{node.text}</p>
-            </details>
-          );
-        })}
+          })}
+        </div>
+        {log.length > 0 ? (
+          <div className="thinking-log">
+            <span className="thinking-log-title">Steps</span>
+            {log.map((line, index) => (
+              <span className="thinking-log-row" key={`${line}-${index}`}>
+                <i aria-hidden="true" />
+                {line}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
     </details>
   );

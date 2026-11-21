@@ -69,6 +69,11 @@ export type ChatMessage = {
   agents?: AgentRun[];
   asks?: AskPrompt[];
   activity?: string;
+  /** Every status line from this turn, so the thinking panel can show the full run. */
+  activities?: string[];
+  /** Client-side turn timing, used for "Thought for 3s" and "Worked for 12s". */
+  startedAt?: string;
+  endedAt?: string;
   error?: string;
 };
 

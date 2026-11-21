@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import Icon, { type IconName } from "./Icon";
 import Logo from "./Logo";
+import ModelMenu from "./ModelMenu";
 import UpdateToast from "./UpdateToast";
 import { useProvider } from "./ProviderContext";
 import { providerLabel } from "@/lib/providers";
@@ -78,6 +79,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState(false);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
 
   const activeId = pathname.startsWith("/build/") ? pathname.split("/")[2] : null;
   const currentProject = projects.find((project) => project.id === activeId);
@@ -116,6 +118,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMobilePanelOpen(false);
+    setModelMenuOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -242,13 +245,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <button
             type="button"
             className="shell-model"
-            onClick={() => router.push("/settings")}
-            title="Open model settings"
+            onClick={() => setModelMenuOpen((value) => !value)}
+            aria-expanded={modelMenuOpen}
+            aria-haspopup="dialog"
+            title="Choose a model"
           >
             <span className={`status-dot ${provider.baseUrl === "demo" ? "demo" : "live"}`} />
             <span className="shell-model-label">{providerLabel(provider)}</span>
             <Icon name="chevronDown" size={13} className="shell-model-caret" />
           </button>
+          {modelMenuOpen ? (
+            <ModelMenu
+              onClose={() => setModelMenuOpen(false)}
+              onManage={() => {
+                setModelMenuOpen(false);
+                router.push("/settings");
+              }}
+            />
+          ) : null}
           <button
             type="button"
             className="shell-panel-toggle"
