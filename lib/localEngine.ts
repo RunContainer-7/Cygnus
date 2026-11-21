@@ -234,22 +234,47 @@ function isPortFree(port: number): Promise<boolean> {
   });
 }
 
-function run(command: string, args: string[]): Promise<void> {
+type RunOptions = {
+  env?: NodeJS.ProcessEnv;
+  timeoutMs?: number;
+};
+
+function run(command: string, args: string[], options: RunOptions = {}): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
+      env: options.env ?? process.env,
     });
     let stderr = "";
+    let settled = false;
+    let timer: NodeJS.Timeout | null = null;
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (error) reject(error);
+      else resolve();
+    };
+    if (options.timeoutMs) {
+      timer = setTimeout(() => {
+        try {
+          child.kill();
+        } catch {
+          // The child may already be gone.
+        }
+        finish(new Error(`${command} timed out after ${Math.round((options.timeoutMs ?? 0) / 1000)} seconds.`));
+      }, options.timeoutMs);
+    }
     child.stderr?.on("data", (chunk) => {
       stderr += String(chunk);
     });
-    child.once("error", reject);
+    child.once("error", (error) => finish(error));
     child.once("exit", (code) => {
       if (code === 0) {
-        resolve();
+        finish();
       } else {
-        reject(new Error(`${command} exited with code ${code ?? "unknown"}. ${stderr.slice(-600)}`));
+        finish(new Error(`${command} exited with code ${code ?? "unknown"}. ${stderr.slice(-600)}`));
       }
     });
   });
@@ -598,63 +623,118 @@ async function installGgufModel(
   if (active) return active;
 
   const promise = (async () => {
-    if (!model.gguf) throw new Error(`${model.name} has no download configured.`);
-    const dir = path.join(os.homedir(), ".cygnus", "models");
+    const gguf = model.gguf;
+    if (!gguf) throw new Error(`${model.name} has no download configured.`);
+
+    const dir = modelsDir();
     await fsp.mkdir(dir, { recursive: true });
     const target = path.join(dir, `${model.id}.gguf`);
+    // Older builds saved the archive under the home folder even when the
+    // engine used a different data folder. Reuse that file instead of
+    // downloading another 531 MB.
+    const legacy = path.join(os.homedir(), ".cygnus", "models", `${model.id}.gguf`);
+    const expected = gguf.bytes ?? 0;
 
-    const response = await fetch(model.gguf.url, {
-      signal: AbortSignal.timeout(12 * 60 * 60 * 1000),
-      redirect: "follow",
-    });
-    if (!response.ok || !response.body) {
-      throw new Error(
-        `Could not download ${model.name} (HTTP ${response.status}). Check the connection and try again.`,
-      );
-    }
-
-    const total = Number(response.headers.get("content-length") ?? 0) || undefined;
-    const temp = `${target}.part`;
-    const out = fs.createWriteStream(temp);
-    const reader = response.body.getReader();
-    let completed = 0;
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        completed += value.byteLength;
-        out.write(Buffer.from(value));
-        onProgress({ status: `Downloading ${model.name}`, completed, total });
+    const isComplete = async (file: string): Promise<boolean> => {
+      try {
+        const info = await fsp.stat(file);
+        return expected > 0 ? info.size === expected : info.size > 0;
+      } catch {
+        return false;
       }
-    } finally {
-      await new Promise<void>((resolve, reject) => {
-        out.once("finish", () => resolve());
-        out.once("error", reject);
-        out.end();
-      });
-    }
-    await fsp.rename(temp, target);
+    };
 
-    onProgress({ status: `Building ${model.name}`, completed: total, total });
+    let source: string | null = null;
+    for (const candidate of [target, legacy]) {
+      if (await isComplete(candidate)) {
+        source = candidate;
+        break;
+      }
+    }
+
+    if (!source) {
+      const response = await fetch(gguf.url, {
+        signal: AbortSignal.timeout(12 * 60 * 60 * 1000),
+        redirect: "follow",
+      });
+      if (!response.ok || !response.body) {
+        throw new Error(
+          `Could not download ${model.name} (HTTP ${response.status}). Check the connection and try again.`,
+        );
+      }
+
+      const total = expected || Number(response.headers.get("content-length") ?? 0) || undefined;
+      const temp = `${target}.part`;
+      let completed = 0;
+      let lastReport = 0;
+      const counter = new Transform({
+        transform(chunk: Buffer, _encoding, callback) {
+          completed += chunk.length;
+          const now = Date.now();
+          if (now - lastReport >= 250 || (total !== undefined && completed >= total)) {
+            lastReport = now;
+            onProgress({ status: `Downloading ${model.name}`, completed, total });
+          }
+          callback(null, chunk);
+        },
+      });
+
+      try {
+        await pipeline(
+          Readable.from(response.body as unknown as AsyncIterable<Uint8Array>),
+          counter,
+          fs.createWriteStream(temp),
+        );
+      } catch (error) {
+        await fsp.unlink(temp).catch(() => undefined);
+        throw error;
+      }
+      onProgress({ status: `Downloading ${model.name}`, completed, total });
+
+      if (expected > 0 && completed !== expected) {
+        await fsp.unlink(temp).catch(() => undefined);
+        throw new Error(
+          `${model.name} stopped at ${completed} of ${expected} bytes. Check the connection and try again.`,
+        );
+      }
+      await fsp.rename(temp, target);
+      source = target;
+    }
+
+    // Ollama 0.40 dropped the Modelfile field from /api/create: it only
+    // accepts a pushed blob digest. The engine's own CLI hashes and imports
+    // the GGUF the way that version expects, so use it to build the model.
+    onProgress({ status: `Building ${model.name}` });
+
+    const binary = await findBinary();
+    if (!binary) throw new Error("The local engine is not installed.");
+
+    const modelfilePath = path.join(dir, `${model.id}.Modelfile`);
     const modelfile = [
-      `FROM ${target}`,
-      `SYSTEM """${model.gguf.system}"""`,
+      `FROM ${source}`,
+      `SYSTEM """${gguf.system}"""`,
       "PARAMETER temperature 0.7",
       "PARAMETER top_p 0.9",
       "PARAMETER repeat_penalty 1.1",
     ].join("\n");
+    await fsp.writeFile(modelfilePath, modelfile, "utf8");
 
-    const create = await fetch(`${ENGINE_ORIGIN}/api/create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: model.tag, modelfile, stream: false }),
-      signal: AbortSignal.timeout(30 * 60 * 1000),
-    });
-    if (!create.ok) {
-      const detail = await create.text().catch(() => "");
-      throw new Error(
-        `Could not build ${model.name} (HTTP ${create.status}). ${detail.replace(/\s+/g, " ").slice(0, 200)}`,
-      );
+    try {
+      await run(binary, ["create", model.tag, "-f", modelfilePath], {
+        env: {
+          ...process.env,
+          OLLAMA_HOST: `${ENGINE_HOST}:${ENGINE_PORT}`,
+          OLLAMA_MODELS: dir,
+        },
+        timeoutMs: 30 * 60 * 1000,
+      });
+    } finally {
+      await fsp.unlink(modelfilePath).catch(() => undefined);
+    }
+
+    const after = await listInstalledModels();
+    if (!after.some((name) => sameModel(name, model.tag))) {
+      throw new Error(`${model.name} was built but the engine did not list it.`);
     }
   })().finally(() => {
     current.pulling.delete(model.id);

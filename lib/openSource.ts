@@ -32,7 +32,7 @@ export type OpenSourceModel = {
   note: string;
   tier: HostedTier;
   /** A GGUF hosted by the project, installed locally instead of pulled by tag. */
-  gguf?: { url: string; system: string };
+  gguf?: { url: string; system: string; bytes?: number };
   recommended?: boolean;
   badge?: string;
   /** Visual tone of the badge. `warn` paints it red. */
@@ -62,6 +62,7 @@ export const OPEN_SOURCE_ENGINE_MODELS: OpenSourceModel[] = [
     kind: "chat",
     gguf: {
       url: "https://github.com/RunContainer-7/Cygnus/releases/download/v0.4.0/cygnus-0.5-q8_0.gguf",
+      bytes: 531067968,
       system:
         "You are Cygnus, a friendly assistant that runs on the user's own computer. Cygnus is the product; the model underneath is a small open-weight model. Never name a company or another model. Answer plainly and briefly.",
     },
