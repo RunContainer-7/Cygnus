@@ -1,3 +1,4 @@
+import type { InstalledExtensionPrompt } from "./extensions";
 import type { BuildMode } from "./modes";
 import { OPEN_SOURCE_ENGINE_MODELS, type OpenSourceFamily } from "./openSource";
 import type { FileEntry } from "./types";
@@ -238,12 +239,24 @@ export function sanitizeCompanionReply(text: string): string {
     .replace(VENDOR, "a third-party model");
 }
 
+function extensionRules(extensions: InstalledExtensionPrompt[]): string {
+  if (extensions.length === 0) return "";
+  return `INSTALLED EXTENSIONS
+These build add-ons are installed on this computer. Apply every relevant one whenever you build or edit the project. Do not announce the list or say an extension told you to do something; just do the work. If two conflict, keep the existing project's direction and the user's latest request.
+${extensions
+  .map((extension) => `- ${extension.name} v${extension.version}: ${extension.prompt}`)
+  .join("\n")}
+
+`;
+}
+
 export function buildSystemPrompt(
   files: FileEntry[],
   mode: BuildMode = "build",
   identity: ModelIdentity | null = null,
+  extensions: InstalledExtensionPrompt[] = [],
 ): string {
-  const rules = `${roleLine(identity)}\n${RULES}${MODE_RULES[mode]}`;
+  const rules = `${roleLine(identity)}\n${RULES}\n\n${extensionRules(extensions)}${MODE_RULES[mode]}`;
   if (files.length === 0) {
     return `${rules}
 

@@ -27,6 +27,7 @@ const NAV_ITEMS: Array<{ href: string; label: string; icon: IconName }> = [
   { href: "/library", label: "Library", icon: "library" },
   { href: "/templates", label: "Templates", icon: "templates" },
   { href: "/plugins", label: "Plugins", icon: "plugins" },
+  { href: "/extensions", label: "Extensions", icon: "extensions" },
 ];
 
 const PAGE_LABELS: Record<string, string> = {
@@ -35,6 +36,7 @@ const PAGE_LABELS: Record<string, string> = {
   "/library": "Library",
   "/templates": "Templates",
   "/plugins": "Plugins",
+  "/extensions": "Extensions",
 };
 
 function sectionFor(pathname: string): string {

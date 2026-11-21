@@ -197,6 +197,24 @@ export default function PluginsPage() {
         <div className="plugins-cloud">
           <div>
             <span className="plugins-cloud-icon">
+              <Icon name="extensions" size={18} />
+            </span>
+            <div>
+              <strong>Looking for build add-ons?</strong>
+              <p>
+                Extensions install accessibility, SEO, PWA, motion, chart and launch-page rules
+                that Cygnus applies to every build.
+              </p>
+            </div>
+          </div>
+          <Link href="/extensions">
+            Browse extensions <Icon name="arrowRight" size={13} />
+          </Link>
+        </div>
+
+        <div className="plugins-cloud">
+          <div>
+            <span className="plugins-cloud-icon">
               <Icon name="sliders" size={18} />
             </span>
             <div>

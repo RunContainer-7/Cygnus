@@ -6,6 +6,7 @@ export type IconName =
   | "library"
   | "templates"
   | "plugins"
+  | "extensions"
   | "help"
   | "menu"
   | "panel"
@@ -62,6 +63,9 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M6.5 8h11v4.5a5.5 5.5 0 0 1-11 0Z" />
       <path d="M12 18v3" />
     </>
+  ),
+  extensions: (
+    <path d="M10 3.5a2 2 0 0 1 4 0V5h3.5A1.5 1.5 0 0 1 19 6.5V10h1.5a2 2 0 1 1 0 4H19v3.5a1.5 1.5 0 0 1-1.5 1.5H14v-1.5a2 2 0 1 0-4 0V19H6.5A1.5 1.5 0 0 1 5 17.5V14H3.5a2 2 0 1 1 0-4H5V6.5A1.5 1.5 0 0 1 6.5 5H10Z" />
   ),
   help: (
     <>

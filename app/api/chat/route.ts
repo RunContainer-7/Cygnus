@@ -4,6 +4,7 @@ import { runDemo } from "@/lib/demo";
 import { streamCygnusChat, type CygnusChatTurn } from "@/lib/cygnus05";
 import { isCygnusLocalProvider } from "@/lib/cygnus05Shared";
 import { normalizeBaseUrl } from "@/lib/endpoints";
+import { getInstalledExtensionPrompts } from "@/lib/extensionStore";
 import { streamModelTurn, type WireMessage } from "@/lib/llm";
 import { modelSupportsTools } from "@/lib/openSource";
 import { isBuildMode, type BuildMode } from "@/lib/modes";
@@ -274,8 +275,11 @@ export async function POST(request: NextRequest) {
         const companionTools = toolDefinitions.filter((tool) =>
           COMPANION_TOOL_ALLOWLIST.has(tool.function.name),
         );
+        const installedExtensions = toolsAllowed
+          ? await getInstalledExtensionPrompts().catch(() => [])
+          : [];
         const systemPrompt = toolsAllowed
-          ? buildSystemPrompt(filesWithContent, mode, identity)
+          ? buildSystemPrompt(filesWithContent, mode, identity, installedExtensions)
           : buildCompanionPrompt(
               companionTools.map((tool) => tool.function.name),
               identity,
