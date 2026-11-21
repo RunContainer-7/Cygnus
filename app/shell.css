@@ -4711,6 +4711,35 @@ body {
   color: #d8f0dc !important;
 }
 
+.export-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-color: rgba(216, 200, 153, 0.32) !important;
+  background: rgba(216, 200, 153, 0.08) !important;
+  color: #efe4c8 !important;
+  font-weight: 550;
+}
+
+.export-trigger:hover {
+  border-color: rgba(216, 200, 153, 0.55) !important;
+  background: rgba(216, 200, 153, 0.16) !important;
+  color: #fff8e8 !important;
+}
+
+.workspace-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+}
+
+.export-trigger.disabled,
+.workspace-export.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .publish-backdrop {
   position: fixed;
   inset: 0;
@@ -4954,11 +4983,18 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: var(--shell-cream);
+  padding: 7px 11px;
+  border: 1px solid rgba(216, 200, 153, 0.3);
+  border-radius: 8px;
+  background: rgba(216, 200, 153, 0.08);
+  color: #efe4c8;
   text-decoration: none;
   font-size: 12px;
+  font-weight: 550;
 }
 
 .publish-zip:hover {
-  color: #fff;
+  border-color: rgba(216, 200, 153, 0.55);
+  background: rgba(216, 200, 153, 0.16);
+  color: #fff8e8;
 }

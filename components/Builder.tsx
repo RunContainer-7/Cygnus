@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import CommandPalette, { type PaletteAction } from "@/components/CommandPalette";
 import FileDrawer from "@/components/FileDrawer";
+import Icon from "@/components/Icon";
 import ModeMenu from "@/components/ModeMenu";
 import ModelMenu from "@/components/ModelMenu";
 import PublishPanel from "@/components/PublishPanel";
@@ -773,6 +774,22 @@ export default function Builder({
           </button>
         ))}
         <span className="workspace-tabs-meta">
+          <a
+            className={`workspace-tool workspace-export ${files.length === 0 ? "disabled" : ""}`}
+            href={files.length > 0 ? `/api/projects/${projectId}/export` : undefined}
+            aria-disabled={files.length === 0}
+            onClick={(event) => {
+              if (files.length === 0) event.preventDefault();
+            }}
+            title={
+              files.length > 0
+                ? "Download every project file as a .zip"
+                : "There are no files to export yet"
+            }
+          >
+            <Icon name="download" size={12} />
+            Export
+          </a>
           <button
             type="button"
             className="workspace-tool"
@@ -1112,6 +1129,22 @@ export default function Builder({
                   >
                     {project?.publish ? "Published" : "Publish"}
                   </button>
+                  <a
+                    className={`export-trigger ${files.length === 0 ? "disabled" : ""}`}
+                    href={files.length > 0 ? `/api/projects/${projectId}/export` : undefined}
+                    aria-disabled={files.length === 0}
+                    onClick={(event) => {
+                      if (files.length === 0) event.preventDefault();
+                    }}
+                    title={
+                      files.length > 0
+                        ? "Download every project file as a .zip"
+                        : "There are no files to export yet"
+                    }
+                  >
+                    <Icon name="download" size={13} />
+                    Export .zip
+                  </a>
                   <button
                     type="button"
                     onClick={() => setRelease((value) => value + 1)}

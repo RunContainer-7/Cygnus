@@ -315,7 +315,7 @@ export default function PublishPanel({
 
         <footer className="publish-foot">
           <a className="publish-zip" href={`/api/projects/${projectId}/export`}>
-            <Icon name="file" size={14} />
+            <Icon name="download" size={14} />
             Download .zip
           </a>
           <span>Every file, no account needed. Host it anywhere.</span>

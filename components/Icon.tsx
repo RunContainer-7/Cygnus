@@ -20,6 +20,7 @@ export type IconName =
   | "sparkles"
   | "folder"
   | "file"
+  | "download"
   | "code"
   | "refresh"
   | "check"
@@ -116,6 +117,13 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M6 2.8h7l5 5V21H6Z" />
       <path d="M13 2.8v5h5" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M12 3v11" />
+      <path d="m7.5 10 4.5 4.5L16.5 10" />
+      <path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17" />
     </>
   ),
   code: <path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 4l-4 16" />,

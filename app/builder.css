@@ -1814,15 +1814,38 @@
   white-space: nowrap;
 }
 
+.preview-col {
+  container-type: inline-size;
+}
+
 .preview-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  height: 44px;
+  gap: 4px 8px;
+  min-height: 44px;
   flex: none;
-  padding: 0 12px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--line);
+}
+
+/* The preview column is narrow next to the chat. Drop the size switch there
+   so Publish, Export, Reload and Open always stay on screen. */
+@container (max-width: 620px) {
+  .preview-toolbar .device-switch {
+    display: none;
+  }
+
+  .preview-toolbar .preview-actions {
+    gap: 2px;
+  }
+
+  .preview-toolbar .preview-actions button,
+  .preview-toolbar .preview-actions a {
+    padding: 6px 8px;
+    font-size: 12px;
+  }
 }
 
 .panel-title {
