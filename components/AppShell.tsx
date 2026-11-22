@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import HostedUsage from "./HostedUsage";
 import Icon, { type IconName } from "./Icon";
 import Logo from "./Logo";
 import ModelMenu from "./ModelMenu";
@@ -246,6 +247,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="shell-top-actions">
+          <HostedUsage />
           <a
             className="shell-docs"
             href={DOCS_URL}

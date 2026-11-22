@@ -1,5 +1,6 @@
 import { normalizeBaseUrl } from "./endpoints";
 import { HOSTED_BASE_URL, hostedUpstreams } from "./hosted";
+import { assertHostedBudget, recordHostedCall } from "./usage";
 import type { ProviderConfig } from "./types";
 
 export type WireMessage = {
@@ -303,6 +304,10 @@ export async function streamModelTurn(options: {
   let lastError: unknown = null;
   let response: Response | null = null;
 
+  // Kilo's free tier rejects the 201st request in an hour anyway. Stop first so
+  // the user gets the reset time and the alternatives instead of a raw 429.
+  if (hosted) await assertHostedBudget();
+
   for (let index = 0; index < targets.length; index += 1) {
     try {
       response = await openCompletion({
@@ -313,6 +318,8 @@ export async function streamModelTurn(options: {
         signal,
         maxTokens,
       });
+      // One successful gateway response is one of the 200 hourly calls.
+      if (hosted) await recordHostedCall().catch(() => undefined);
       break;
     } catch (error) {
       lastError = error;

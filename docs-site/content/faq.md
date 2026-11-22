@@ -59,7 +59,7 @@ Not directly. Generated apps are static, so there is no server to keep a secret 
 
 ## Is there a usage limit?
 
-Hosted free models share about 200 requests per hour per IP. On-device and local models have no request limit; they are bounded by your hardware.
+Hosted free models share **200 requests per hour per IP address**, reset on the hour. Cygnus counts its own hosted calls and shows them in the top bar; a chat message is usually one call, while a build uses one per tool round. At 200 the app stops with the reset time. On-device and local models have no request limit; they are bounded by your hardware.
 
 ## Can two people use it together?
 

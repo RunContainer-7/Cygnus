@@ -13,6 +13,18 @@ Do one of these:
 - Wait a few minutes.
 - Switch to **Local** (Ollama / LM Studio) or an on-device model.
 
+## The hosted budget is used up
+
+Cygnus counts each successful hosted model call toward the same 200-per-hour ceiling Kilo applies. The meter in the top bar shows the count and the reset time; click it for the details. A build spends one call per tool round, which is why a handful of builds can reach the cap.
+
+When the hour is spent, the app stops before the gateway does and shows the reset time. You can:
+
+- Wait for the reset — the meter counts down to it.
+- Switch to an on-device model, Ollama or LM Studio.
+- Use **BYOK** with your own provider key.
+
+The meter is kept on this computer. If several people or apps share one public IP, the real allowance can run out earlier than the local count suggests.
+
 ## Windows says the app is unsafe
 
 The installer is unsigned, so SmartScreen warns on first run. Click **More info → Run anyway**. The source is public and MIT licensed.

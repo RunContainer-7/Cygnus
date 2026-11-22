@@ -29,6 +29,14 @@ These run through [Kilo AI Gateway](https://ai-gateway.kilo.ai)'s anonymous free
 | Nemotron 3.5 Super VL | Max | Multimodal, 1M context; slower |
 | ERNIE 5.5 Flash 280B | Max | 280B MoE with a 1M context; preview capacity |
 
+### The hourly budget
+
+Cygnus meters hosted calls against Kilo's free-tier limit: **200 requests per hour per IP address**. The counter sits in the top bar while a hosted model is selected; click it to see the reset time.
+
+- **One call is one request to the gateway.** A Chat message is usually one call. A build spends one call per tool round — typically three to eight for a small app, up to 24 for a long one.
+- **The meter is local.** Kilo exposes no remaining-quota endpoint, so Cygnus counts its own successful calls. Other apps and devices on the same public IP share the real allowance.
+- **At 200, Cygnus stops before the gateway does** and tells you when the hour resets. Switch to Local or BYOK to keep working; those lanes have no hourly limit.
+
 Hosted prompts may be logged by the upstream provider. For private code, use an on-device model.
 
 Claude and Grok are not in the no-key lane. Claude works through BYOK; Grok works through a custom endpoint with an xAI key.

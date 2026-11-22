@@ -5713,3 +5713,200 @@ body {
     font-size: 30px;
   }
 }
+
+/* ---------- hosted budget meter ---------- */
+
+.shell-usage-wrap {
+  position: relative;
+  display: flex;
+}
+
+.shell-usage {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: 1px solid var(--shell-line);
+  border-radius: 8px;
+  background: #0f1010;
+  color: #a4aaa2;
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.shell-usage:hover {
+  border-color: var(--shell-line-strong);
+  background: #171918;
+  color: #e8e9e3;
+}
+
+.shell-usage-bar {
+  display: block;
+  width: 24px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.shell-usage-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #8fae90;
+  transition: width 240ms ease;
+}
+
+.shell-usage.warn .shell-usage-bar span {
+  background: #d8c899;
+}
+
+.shell-usage.full .shell-usage-bar span {
+  background: #d98b7a;
+}
+
+.shell-usage-count {
+  color: #d7d9d2;
+}
+
+.shell-usage-word {
+  color: #7d827b;
+}
+
+.shell-usage-pop {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 296px;
+  padding: 15px 16px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 12px;
+  background: #101211;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  color: #b9bdb5;
+}
+
+.shell-usage-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.shell-usage-pop-head strong {
+  color: var(--shell-cream);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.shell-usage-pill {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(143, 174, 144, 0.14);
+  color: #a9c8aa;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.shell-usage-pill.warn {
+  background: rgba(216, 200, 153, 0.15);
+  color: #d8c899;
+}
+
+.shell-usage-pill.full {
+  background: rgba(217, 139, 122, 0.16);
+  color: #e3a294;
+}
+
+.shell-usage-track {
+  height: 5px;
+  margin: 11px 0 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.shell-usage-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #8fae90;
+}
+
+.shell-usage.warn .shell-usage-track span,
+.shell-usage-pop .shell-usage-track.warn span {
+  background: #d8c899;
+}
+
+.shell-usage-big {
+  margin: 11px 0 2px;
+  color: #e2e4dd;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.shell-usage-meta {
+  margin: 0;
+  color: #858b83;
+  font-size: 10.5px;
+}
+
+.shell-usage-note {
+  margin: 11px 0 0;
+  color: #90968e;
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+.shell-usage-total {
+  margin: 8px 0 0;
+  color: #6f756e;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.shell-usage-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: #a9cdb0;
+  font-size: 10.5px;
+  text-decoration: none;
+}
+
+.shell-usage-link:hover {
+  color: #d3ead6;
+}
+
+@media (max-width: 760px) {
+  .shell-usage {
+    height: 30px;
+    padding: 0 7px;
+    gap: 5px;
+  }
+
+  .shell-usage-word {
+    display: none;
+  }
+
+  .shell-usage-bar {
+    width: 16px;
+  }
+}
+
+@media (max-width: 420px) {
+  .shell-usage-bar {
+    display: none;
+  }
+
+  .shell-usage-pop {
+    width: min(276px, calc(100vw - 20px));
+  }
+}

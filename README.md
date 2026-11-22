@@ -19,11 +19,11 @@ Open http://localhost:3000. It starts on **Nemotron 3.5 Lightning**, a hosted op
 
 ## Download for Windows
 
-The latest published installer release is **[v0.5.0](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.5.0)**.
+The latest published installer release is **[v0.5.1](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.5.1)**.
 
-- [Cygnus-Setup-0.5.0.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.0/Cygnus-Setup-0.5.0.exe) — installer with Start Menu and desktop shortcuts.
-- [Cygnus-Portable-0.5.0.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.0/Cygnus-Portable-0.5.0.exe) — portable build that runs without installing.
-- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.0/SHA256SUMS.txt) — checksums for both downloads.
+- [Cygnus-Setup-0.5.1.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.1/Cygnus-Setup-0.5.1.exe) — installer with Start Menu and desktop shortcuts.
+- [Cygnus-Portable-0.5.1.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.1/Cygnus-Portable-0.5.1.exe) — portable build that runs without installing.
+- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.1/SHA256SUMS.txt) — checksums for both downloads.
 
 Installed v0.1.1 and later copies check GitHub Releases on launch and show an in-app update button; updates download and restart in place. Portable builds show a download link instead. The earlier v0.1.0 installers do not include the updater, so updating from v0.1.0 requires this one manual install.
 
@@ -40,8 +40,8 @@ npm run dist
 
 That produces the installers plus update metadata in `release/`:
 
-- `Cygnus-Setup-0.5.0.exe` — a normal setup wizard with Start menu and desktop shortcuts.
-- `Cygnus-Portable-0.5.0.exe` — runs without installing anything.
+- `Cygnus-Setup-0.5.1.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.5.1.exe` — runs without installing anything.
 - `latest.yml` — the update feed consumed by installed copies.
 
 Rebuild the installer after changes to package a new version.
@@ -81,7 +81,7 @@ Cygnus has three lanes in the composer picker:
 
 ### Free cloud · no key
 
-Hosted models run through [Kilo AI Gateway](https://ai-gateway.kilo.ai)'s anonymous free tier (about 200 requests/hour per IP). They are open-weight models, but the capacity is shared: if a model is busy, choose another hosted model, wait, or switch to Local/BYOK.
+Hosted models run through [Kilo AI Gateway](https://ai-gateway.kilo.ai)'s anonymous free tier: **200 requests per hour per IP**, reset on the hour. Cygnus counts each successful gateway call locally and shows the hourly budget in the top bar. A chat message is usually one call; a build spends one per tool round (typically 3–8), so 200 calls is roughly 20–40 build messages. At 200 the app stops before the gateway does and shows the reset time. The capacity is shared: if a model is busy, choose another hosted model, wait, or switch to Local/BYOK.
 
 | Model | Tier | Notes |
 | --- | --- | --- |
@@ -227,7 +227,7 @@ Each project is a normal folder. Open it in any editor, or delete it to start ov
 - Generated apps are static: HTML, CSS and vanilla JavaScript. No npm install, frameworks or build step yet.
 - The preview iframe is same-origin with `allow-scripts`, so generated code can reach the app's own APIs. Do not run untrusted prompts against a server holding real secrets; the next step for hosting is one sandbox (container or microVM) per project.
 - The agent loop is capped at 24 tool rounds per message.
-- Hosted models use shared free capacity (about 200 requests/hour per IP) and may be rate-limited or busy. They may log prompts upstream; Local keeps prompts on your machine.
+- Hosted models use shared free capacity (200 requests/hour per IP, metered in the top bar) and may be rate-limited or busy. They may log prompts upstream; Local keeps prompts on your machine.
 - Provider tool-calling quality varies. Local 7B models work for small edits; long multi-file sessions need a stronger model.
 
 MIT licensed.

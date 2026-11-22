@@ -370,6 +370,7 @@ export default function Builder({
             );
           }
           setRelease((value) => value + 1);
+          window.dispatchEvent(new Event("cygnus:usage"));
         }
       };
 
@@ -426,6 +427,7 @@ export default function Builder({
       );
       setStreaming(false);
       abortRef.current = null;
+      window.dispatchEvent(new Event("cygnus:usage"));
     }
   }
 
