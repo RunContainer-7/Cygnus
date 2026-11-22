@@ -20,3 +20,7 @@ tsconfig.tsbuildinfo
 desktop/main.bundle.cjs
 desktop/main.bundle.cjs.map
 *.log
+
+# Docs build output
+docs-site/dist/
+docs-dev.log

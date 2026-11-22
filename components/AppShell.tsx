@@ -9,6 +9,7 @@ import ModelMenu from "./ModelMenu";
 import UpdateToast from "./UpdateToast";
 import { useProvider } from "./ProviderContext";
 import { providerLabel } from "@/lib/providers";
+import { DOCS_URL } from "@/lib/docs";
 import { APP_VERSION } from "@/lib/version";
 
 type ProjectSummary = {
@@ -37,6 +38,7 @@ const PAGE_LABELS: Record<string, string> = {
   "/templates": "Templates",
   "/plugins": "Plugins",
   "/extensions": "Extensions",
+  "/guide": "Quick guide",
 };
 
 function sectionFor(pathname: string): string {
@@ -244,6 +246,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="shell-top-actions">
+          <a
+            className="shell-docs"
+            href={DOCS_URL}
+            target="_blank"
+            rel="noreferrer"
+            title="Open the Cygnus docs in your browser"
+          >
+            <Icon name="book" size={15} />
+            <span>Docs</span>
+            <Icon name="arrowUpRight" size={12} className="shell-docs-arrow" />
+          </a>
           <button
             type="button"
             className="shell-model"

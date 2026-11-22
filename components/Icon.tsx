@@ -8,6 +8,7 @@ export type IconName =
   | "plugins"
   | "extensions"
   | "help"
+  | "book"
   | "menu"
   | "panel"
   | "search"
@@ -72,6 +73,13 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="12" cy="12" r="9" />
       <path d="M9.3 9a2.8 2.8 0 1 1 4.6 2.1c-.8.7-1.9 1.2-1.9 2.6" />
       <circle cx="12" cy="17.4" r=".7" fill="currentColor" stroke="none" />
+    </>
+  ),
+  book: (
+    <>
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15.5H6.5A2.5 2.5 0 0 0 4 21Z" />
+      <path d="M20 18.5v2.5H6.5A2.5 2.5 0 0 1 4 19" />
+      <path d="M8.5 7.5H16" />
     </>
   ),
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,

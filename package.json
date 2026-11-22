@@ -1,6 +1,6 @@
 {
   "name": "cygnus",
-  "version": "0.4.8",
+  "version": "0.5.0",
   "private": true,
   "description": "Free, open-source AI app builder with hosted, local, and BYOK models.",
   "productName": "Cygnus",
@@ -19,7 +19,9 @@
     "dist:portable": "npm run desktop:build && electron-builder --win portable --publish never",
     "dist:publish": "npm run desktop:build && electron-builder --win --publish always",
     "gateway": "python3 -m respan_gateway",
-    "gateway:check": "python3 -m respan_gateway check"
+    "gateway:check": "python3 -m respan_gateway check",
+    "docs:build": "node docs-site/build.mjs",
+    "docs:dev": "node docs-site/build.mjs && node docs-site/dev-server.mjs"
   },
   "dependencies": {
     "electron-updater": "^6.8.11",

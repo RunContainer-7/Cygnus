@@ -172,6 +172,9 @@ export default function HomePage() {
           </div>
 
           <div className="home-quicklinks">
+            <Link href="/guide">
+              Quick guide <Icon name="arrowUpRight" size={13} />
+            </Link>
             <Link href="/templates">
               Browse templates <Icon name="arrowUpRight" size={13} />
             </Link>
