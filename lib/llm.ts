@@ -1,4 +1,5 @@
 import { normalizeBaseUrl } from "./endpoints";
+import { hardcodedTurn, isHardcodedProvider } from "./hardcoded";
 import { HOSTED_BASE_URL, hostedUpstreams } from "./hosted";
 import { assertHostedBudget, recordHostedCall } from "./usage";
 import type { ProviderConfig } from "./types";
@@ -294,6 +295,21 @@ export async function streamModelTurn(options: {
   maxTokens?: number;
 }): Promise<StreamResult> {
   const { provider, messages, tools, signal, onText, onReasoning, maxTokens } = options;
+
+  // Hard Coded Intelligence has no endpoint and no model: every reply comes
+  // from local rules. It still goes through the normal tool loop, so Build
+  // mode writes, tests and iterates on real files.
+  if (isHardcodedProvider(provider)) {
+    const toolNames = tools
+      .map((entry) => {
+        if (!entry || typeof entry !== "object") return "";
+        const fn = (entry as { function?: { name?: unknown } }).function;
+        return typeof fn?.name === "string" ? fn.name : "";
+      })
+      .filter(Boolean);
+    return hardcodedTurn({ messages, toolNames, onText });
+  }
+
   const targets = requestTargets(provider);
   const hosted = provider.baseUrl === HOSTED_BASE_URL;
 

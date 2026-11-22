@@ -6,6 +6,7 @@ import Icon from "./Icon";
 import { useProvider } from "./ProviderContext";
 import { isLocalEndpoint, normalizeBaseUrl } from "@/lib/endpoints";
 import { CYGNUS_LOCAL_BASE_URL, isCygnusLocalProvider } from "@/lib/cygnus05Shared";
+import { HARDCODED_BASE_URL } from "@/lib/hardcodedShared";
 import { HOSTED_BASE_URL } from "@/lib/hosted";
 import {
   MODEL_TIERS,
@@ -56,7 +57,13 @@ type TaskState = {
 
 function accessForProvider(provider: { baseUrl: string; model: string }): MenuTab {
   if (isCygnusLocalProvider(provider)) return "open";
-  if (normalizeBaseUrl(provider.baseUrl) === HOSTED_BASE_URL || isDemo(provider)) return "open";
+  if (
+    normalizeBaseUrl(provider.baseUrl) === HOSTED_BASE_URL ||
+    provider.baseUrl === HARDCODED_BASE_URL ||
+    isDemo(provider)
+  ) {
+    return "open";
+  }
   if (
     OPEN_SOURCE_MODELS.some(
       (entry) => entry.access === "open" && entry.model === provider.model,
@@ -103,6 +110,7 @@ export default function ModelMenu({
           entry.access === "hosted" ||
           entry.access === "open" ||
           entry.access === "cygnus" ||
+          entry.access === "hardcoded" ||
           entry.access === "demo"
         ) {
           result.open += 1;
@@ -119,6 +127,7 @@ export default function ModelMenu({
         ? entry.access === "hosted" ||
           entry.access === "open" ||
           entry.access === "cygnus" ||
+          entry.access === "hardcoded" ||
           entry.access === "demo"
         : entry.access === access,
     ).sort(
@@ -267,6 +276,16 @@ export default function ModelMenu({
     if (entry.access === "cygnus") {
       chooseProvider({
         baseUrl: CYGNUS_LOCAL_BASE_URL,
+        model: entry.model,
+        apiKey: "",
+        label: entry.name,
+      });
+      onClose();
+      return;
+    }
+    if (entry.access === "hardcoded") {
+      chooseProvider({
+        baseUrl: HARDCODED_BASE_URL,
         model: entry.model,
         apiKey: "",
         label: entry.name,
@@ -470,6 +489,7 @@ export default function ModelMenu({
   const hostedEntries = matching.filter((entry) => entry.access === "hosted");
   const demoEntries = matching.filter((entry) => entry.access === "demo");
   const cygnusEntries = matching.filter((entry) => entry.access === "cygnus");
+  const hardcodedEntries = matching.filter((entry) => entry.access === "hardcoded");
   // Cygnus-family entries run on the local engine like any other on-device
   // model, but they belong in Labs beside the from-scratch one.
   const cygnusLabEntries = matching.filter(
@@ -622,17 +642,21 @@ export default function ModelMenu({
                 </>
               ) : null}
 
-              {cygnusLabEntries.length > 0 || cygnusEntries.length > 0 ? (
+              {cygnusLabEntries.length > 0 ||
+              cygnusEntries.length > 0 ||
+              hardcodedEntries.length > 0 ? (
                 <>
                   <div className="mp-group-label">Cygnus Labs · experimental</div>
+                  {hardcodedEntries.map(renderRow)}
                   {cygnusLabEntries.map(renderRow)}
                   {cygnusEntries.map(renderRow)}
                   <p className="mp-engine-note">
-                    Cygnus&apos;s own models, both chat only and neither recommended for real work.
-                    Femto ships with the app: 21 MB of weights trained from scratch on this PC, no
-                    download. Cygnus 0.5 is the fine-tuned 0.5B model and needs a one-time 530 MB
-                    download plus the local engine, because a transformer that size cannot ship
-                    inside the app.
+                    Cygnus Labs entries, none recommended for real work. Hard Coded Intelligence
+                    has no model and no network: it is deterministic rules and hand-written app
+                    templates, with tools in Plan and Build. Femto ships with the app: 21 MB of
+                    weights trained from scratch on this PC, no download. Cygnus 0.5 is the
+                    fine-tuned 0.5B model and needs a one-time 530 MB download plus the local
+                    engine, because a transformer that size cannot ship inside the app.
                   </p>
                 </>
               ) : null}
@@ -922,6 +946,9 @@ function ModelRow({
         ) : null}
         {!busy && !blocked && entry.access === "cygnus" ? (
           <span className="mp-key-hint">Chat only</span>
+        ) : null}
+        {!busy && !blocked && entry.access === "hardcoded" ? (
+          <span className="mp-key-hint">Built in</span>
         ) : null}
         {!busy && !blocked && entry.access === "local" ? (
           <span className="mp-key-hint">Connect</span>

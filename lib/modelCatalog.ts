@@ -14,9 +14,21 @@ import {
   type OpenSourceFamily,
   type OpenSourceKind,
 } from "./openSource";
+import {
+  HARDCODED_BASE_URL,
+  HARDCODED_LABEL,
+  HARDCODED_MODEL,
+} from "./hardcodedShared";
 
 export type ModelTier = HostedTier;
-export type ModelAccess = "hosted" | "open" | "cygnus" | "local" | "byok" | "demo";
+export type ModelAccess =
+  | "hosted"
+  | "open"
+  | "cygnus"
+  | "hardcoded"
+  | "local"
+  | "byok"
+  | "demo";
 
 export type OpenModel = {
   id: string;
@@ -92,6 +104,27 @@ const CYGNUS_ENTRIES: OpenModel[] = [
   },
 ];
 
+const HARDCODED_ENTRIES: OpenModel[] = [
+  {
+    id: "hardcoded-intelligence",
+    name: HARDCODED_LABEL,
+    provider: "Cygnus Labs",
+    baseUrl: HARDCODED_BASE_URL,
+    model: HARDCODED_MODEL,
+    tier: "low",
+    access: "hardcoded",
+    badge: "Not recommended",
+    tone: "warn",
+    note: "No model and no network: deterministic rules and hand-written app templates. Instant and offline, but it only handles patterns it was written for.",
+    family: "Cygnus",
+    kind: "agent",
+    tools: true,
+    size: "0 MB",
+    minRamGb: 0,
+    experimental: true,
+  },
+];
+
 const ON_DEVICE_ENTRIES: OpenModel[] = OPEN_SOURCE_ENGINE_MODELS.map((entry) => ({
   id: `open-${entry.id}`,
   name: entry.name,
@@ -121,6 +154,7 @@ const ON_DEVICE_ENTRIES: OpenModel[] = OPEN_SOURCE_ENGINE_MODELS.map((entry) => 
 export const OPEN_SOURCE_MODELS: OpenModel[] = [
   ...HOSTED_ENTRIES,
   ...CYGNUS_ENTRIES,
+  ...HARDCODED_ENTRIES,
   ...ON_DEVICE_ENTRIES,
   {
     id: "offline-demo",

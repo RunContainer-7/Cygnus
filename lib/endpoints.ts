@@ -1,4 +1,5 @@
 import { CYGNUS_LOCAL_BASE_URL } from "./cygnus05Shared";
+import { HARDCODED_BASE_URL } from "./hardcodedShared";
 import { HOSTED_BASE_URL } from "./hosted";
 
 const LOCAL_HOST =
@@ -14,7 +15,12 @@ const LOCAL_HOST =
 export function normalizeBaseUrl(input: string): string {
   let value = (input ?? "").trim();
   if (!value) return "";
-  if (value === "demo" || value === HOSTED_BASE_URL || value === CYGNUS_LOCAL_BASE_URL) {
+  if (
+    value === "demo" ||
+    value === HOSTED_BASE_URL ||
+    value === HARDCODED_BASE_URL ||
+    value === CYGNUS_LOCAL_BASE_URL
+  ) {
     return value;
   }
 
@@ -40,6 +46,7 @@ export function isLocalEndpoint(baseUrl: string): boolean {
 
 export function endpointHost(baseUrl: string): string {
   if (baseUrl === HOSTED_BASE_URL) return "Cygnus Hosted";
+  if (baseUrl === HARDCODED_BASE_URL) return "Hard Coded Intelligence · local rules";
   if (baseUrl === CYGNUS_LOCAL_BASE_URL) return "Cygnus 0.5 · local";
   try {
     return new URL(normalizeBaseUrl(baseUrl)).host;

@@ -1,5 +1,6 @@
 import { CYGNUS_LOCAL_BASE_URL, CYGNUS_LOCAL_LABEL } from "./cygnus05Shared";
 import { isLocalEndpoint, normalizeBaseUrl } from "./endpoints";
+import { HARDCODED_LABEL, isHardcodedProvider } from "./hardcodedShared";
 import { HOSTED_BASE_URL, HOSTED_MODELS, findHostedModel } from "./hosted";
 import type { ProviderConfig } from "./types";
 
@@ -232,6 +233,7 @@ export function isHosted(provider: ProviderConfig): boolean {
 
 export function isKeylessProvider(provider: ProviderConfig): boolean {
   if (isDemo(provider) || isHosted(provider)) return true;
+  if (isHardcodedProvider(provider)) return true;
   if (provider.baseUrl === CYGNUS_LOCAL_BASE_URL) return true;
   if (isLocalEndpoint(provider.baseUrl)) return true;
   const endpoint = normalizeBaseUrl(provider.baseUrl);
@@ -243,6 +245,7 @@ export function isKeylessProvider(provider: ProviderConfig): boolean {
 
 export function providerLabel(provider: ProviderConfig): string {
   if (isDemo(provider)) return "Offline demo";
+  if (isHardcodedProvider(provider)) return HARDCODED_LABEL;
   if (provider.baseUrl === CYGNUS_LOCAL_BASE_URL) return CYGNUS_LOCAL_LABEL;
   // The on-device Cygnus 0.5 model shares the local engine's endpoint, so its
   // own name has to win over the generic Ollama preset.

@@ -19,11 +19,11 @@ Open http://localhost:3000. It starts on **Nemotron 3.5 Lightning**, a hosted op
 
 ## Download for Windows
 
-The latest published installer release is **[v0.5.1](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.5.1)**.
+The latest published installer release is **[v0.5.2](https://github.com/RunContainer-7/Cygnus/releases/tag/v0.5.2)**.
 
-- [Cygnus-Setup-0.5.1.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.1/Cygnus-Setup-0.5.1.exe) — installer with Start Menu and desktop shortcuts.
-- [Cygnus-Portable-0.5.1.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.1/Cygnus-Portable-0.5.1.exe) — portable build that runs without installing.
-- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.1/SHA256SUMS.txt) — checksums for both downloads.
+- [Cygnus-Setup-0.5.2.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.2/Cygnus-Setup-0.5.2.exe) — installer with Start Menu and desktop shortcuts.
+- [Cygnus-Portable-0.5.2.exe](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.2/Cygnus-Portable-0.5.2.exe) — portable build that runs without installing.
+- [SHA256SUMS.txt](https://github.com/RunContainer-7/Cygnus/releases/download/v0.5.2/SHA256SUMS.txt) — checksums for both downloads.
 
 Installed v0.1.1 and later copies check GitHub Releases on launch and show an in-app update button; updates download and restart in place. Portable builds show a download link instead. The earlier v0.1.0 installers do not include the updater, so updating from v0.1.0 requires this one manual install.
 
@@ -40,8 +40,8 @@ npm run dist
 
 That produces the installers plus update metadata in `release/`:
 
-- `Cygnus-Setup-0.5.1.exe` — a normal setup wizard with Start menu and desktop shortcuts.
-- `Cygnus-Portable-0.5.1.exe` — runs without installing anything.
+- `Cygnus-Setup-0.5.2.exe` — a normal setup wizard with Start menu and desktop shortcuts.
+- `Cygnus-Portable-0.5.2.exe` — runs without installing anything.
 - `latest.yml` — the update feed consumed by installed copies.
 
 Rebuild the installer after changes to package a new version.
@@ -75,7 +75,7 @@ Cygnus has three lanes in the composer picker:
 
 | Lane | Key | What it is |
 | --- | --- | --- |
-| **Open source** | None | Eighteen open-weight models run on this PC's CPU/GPU, plus seven free cloud models and the experimental Cygnus 0.5. On-device code and prompts stay local. |
+| **Open source** | None | Eighteen open-weight models run on this PC's CPU/GPU, plus seven free cloud models, the experimental Cygnus 0.5, and the deterministic Hard Coded Intelligence. On-device code and prompts stay local. |
 | **Local** | None | Connect Ollama or LM Studio only. Uses the model already loaded there. Private, offline-capable. |
 | **BYOK** | Your key | Paste one key; Cygnus detects the provider and picks a coding model. No model list to maintain. |
 
@@ -140,7 +140,9 @@ Pick one of these in **Open source → On this PC**. Cygnus installs a standalon
 
 Agent models are tool-capable. Solar 10.7B is the 2023 open-weight checkpoint: chat-only, 4K context, and no native tool calling. Upstage's tool-capable Solar Pro 3/4 are hosted API models, not this checkpoint. olmOCR is OCR-only, so both are listed but disabled for app builds. Models that exceed the machine's RAM are also disabled. Llama is open-weight under Meta's community license, not OSI-approved; Solar's instruct weights are non-commercial; Muse Spark uses the Muse Model License; RNJ-1, Muse Glimmer and Beam are Apache-2.0; the rest are Apache-2.0 or MIT. The engine and model store live in the app's user-data folder; delete a model to reclaim the disk space.
 
-### Cygnus Labs · local chat
+### Cygnus Labs · experimental
+
+**Hard Coded Intelligence** is the deterministic option: no model, no key, no network. Hand-written rules recognise intents, generate complete static apps through the same `blueprint` / `write_file` / `test_app` loop, and answer project questions. It is marked **not recommended** because it only covers the patterns it was written for; outside that list it says so rather than inventing an answer. Ask “what can you do” for the current list. In Plan and Build modes it uses the same tools as every other model.
 
 **Cygnus 0.5** is the model to pick for conversation. It runs a 0.5B instruct model through the same local engine, needs no key, and keeps every prompt on this computer. It answers questions in plain English, holds a short conversation, and has everyday common sense. It is **chat only** and does not build apps; agent models do that.
 

@@ -52,6 +52,29 @@ Pick a model under **Open source → On this PC**. Cygnus installs a standalone 
 
 **Cygnus 0.5** is the dedicated local chat model: a 0.5B instruct model that needs no key and keeps every prompt on the computer. It cannot build apps; the agent models do that.
 
+## Cygnus Labs · experimental
+
+Two experiments sit under **Open source → Cygnus Labs**. Neither is recommended for real work.
+
+### Hard Coded Intelligence
+
+Hard Coded Intelligence is not a model. It is a deterministic rule engine: hand-written intent patterns, a small arithmetic and unit converter, a project reader, and complete templates for common apps. It starts instantly, uses no GPU and makes no network request.
+
+It can:
+
+- **Build** a landing page, portfolio, blog, dashboard, task tracker, notes app, calculator, focus timer, quiz, expense tracker, unit converter, password generator or tic-tac-toe game.
+- **Edit** an existing project: add pricing, FAQ, testimonials, gallery, stats, contact or about sections; remove a section it added; change the accent colour; rename the site; make the hero taller or shorter; switch the display font; add a phone breakpoint.
+- **Read** the project: list files, summarize the structure, show a file, search for text and count lines.
+- **Answer** a written list of desk questions: arithmetic, percentages, unit and temperature conversion, word counts, text transforms, base64, passwords, dates, a small fact set, and standard CSS, JavaScript and Git snippets.
+
+In Plan and Build modes it calls the same tools as every other model: `blueprint`, `write_file`, `read_file`, `search_files`, `list_files`, `delete_file`, `user_ask` and `test_app`. Generated projects go through the app test before the turn ends.
+
+The honest limit: it only handles the patterns it was written for. Outside that list it says so instead of inventing an answer. Ask **“what can you do”** in chat for its current list.
+
+### Cygnus 0.5 and Femto
+
+**Cygnus 0.5** is the downloadable 0.5B chat model described above. **Cygnus 0.5 Femto** is the 5.3M-parameter from-scratch experiment that ships inside the app. Both are chat only and both are marked not recommended.
+
 ## Local runtimes
 
 Already running Ollama or LM Studio? Choose **Local** and connect the endpoint you have.
