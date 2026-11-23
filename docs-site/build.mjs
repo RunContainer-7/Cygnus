@@ -9,7 +9,7 @@ const distDir = path.join(here, "dist");
 
 const SECTIONS = [
   { title: "Overview", pages: ["overview"] },
-  { title: "Getting started", pages: ["quickstart", "models", "publishing"] },
+  { title: "Getting started", pages: ["download", "quickstart", "models", "publishing"] },
   {
     title: "Guides",
     pages: [
@@ -30,6 +30,7 @@ const SECTIONS = [
 ];
 
 const VERSION = readVersion();
+const DOWNLOADS = readDownloads(VERSION);
 
 function readVersion() {
   try {
@@ -38,6 +39,50 @@ function readVersion() {
   } catch {
     return "0.0.0";
   }
+}
+
+/**
+ * Download cards are generated from the version and the release folder, so the
+ * docs always offer the build that matches the version they show. Missing
+ * files simply drop the size and checksum instead of breaking the build.
+ */
+function readDownloads(version) {
+  const repo = "https://github.com/RunContainer-7/Cygnus";
+  const tag = `v${version}`;
+  const releaseDir = path.join(here, "..", "release");
+  let sums = "";
+  try {
+    sums = fs.readFileSync(path.join(releaseDir, "SHA256SUMS.txt"), "utf8");
+  } catch {
+    sums = "";
+  }
+
+  const entry = (kind) => {
+    const file = `Cygnus-${kind}-${version}.exe`;
+    let bytes = null;
+    try {
+      bytes = fs.statSync(path.join(releaseDir, file)).size;
+    } catch {
+      bytes = null;
+    }
+    const line = sums.split("\n").find((row) => row.includes(file));
+    const sha256 = line ? line.trim().split(/\s+/)[0] : "";
+    return {
+      file,
+      bytes,
+      sha256,
+      url: `${repo}/releases/download/${tag}/${file}`,
+    };
+  };
+
+  return {
+    version,
+    tag,
+    repo,
+    releaseUrl: `${repo}/releases/tag/${tag}`,
+    setup: entry("Setup"),
+    portable: entry("Portable"),
+  };
 }
 
 function escapeHtml(value) {
@@ -259,6 +304,7 @@ for (const section of SECTIONS) {
 
 const payload = {
   version: VERSION,
+  downloads: DOWNLOADS,
   sections: SECTIONS.map((section) => ({
     title: section.title,
     pages: section.pages,

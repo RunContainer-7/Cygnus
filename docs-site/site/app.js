@@ -49,6 +49,118 @@
       .join("")}`;
   }
 
+  function formatBytes(bytes) {
+    if (!bytes) return "";
+    const mb = bytes / 1_000_000;
+    return `${mb >= 100 ? Math.round(mb) : mb.toFixed(1)} MB`;
+  }
+
+  function downloadMeta(entry) {
+    return [formatBytes(entry.bytes), "Windows x64"].filter(Boolean).join(" · ");
+  }
+
+  function homePanels() {
+    const downloads = state.data.downloads;
+    if (!downloads) return "";
+    const button = (entry, label, primary) => {
+      if (!entry) return "";
+      const size = formatBytes(entry.bytes);
+      return `<a class="download-button${primary ? " primary" : ""}" href="${escapeText(entry.url)}" target="_blank" rel="noreferrer">
+        <span>${label}</span>${size ? `<small>${size}</small>` : ""}
+      </a>`;
+    };
+    const panels = [
+      {
+        href: "/quickstart",
+        kicker: "Getting started",
+        title: "Build your first app",
+        text: "Install, describe what you want, and get real files plus a live preview in about five minutes.",
+      },
+      {
+        href: "/models",
+        kicker: "Models",
+        title: "Pick a brain",
+        text: "Free hosted models need no key. On-device, Ollama, LM Studio and BYOK are one click away.",
+      },
+      {
+        href: "/publishing",
+        kicker: "Publishing",
+        title: "Put it online",
+        text: "Download a .zip or ship straight to Cloudflare Pages on your own free account.",
+      },
+      {
+        href: "/agent-tools",
+        kicker: "Under the hood",
+        title: "See the tools",
+        text: "write_file, read_file, search_files and the 24-round agent loop behind every build.",
+      },
+    ];
+    return `<section class="download-hero home-hero">
+      <span class="download-kicker">Windows · v${downloads.version} · MIT</span>
+      <h2>Get Cygnus</h2>
+      <p>Describe an app, then watch an agent write real HTML, CSS and JavaScript into a folder on this PC. No account, no npm install, no build step.</p>
+      <div class="download-actions">
+        ${button(downloads.setup, "Download installer", true)}
+        ${button(downloads.portable, "Portable .exe", false)}
+      </div>
+      <p class="download-foot"><a href="/download" data-link>Install details</a><span>Windows 10/11 · x64</span></p>
+    </section>
+    <section class="panel-grid">
+      ${panels
+        .map(
+          (panel) => `<a class="panel-card" href="${panel.href}" data-link>
+        <span class="panel-kicker">${panel.kicker}</span>
+        <span class="panel-title">${panel.title}</span>
+        <span class="panel-text">${panel.text}</span>
+        <span class="panel-arrow" aria-hidden="true">→</span>
+      </a>`,
+        )
+        .join("")}
+    </section>`;
+  }
+
+  function downloadPanels() {
+    const downloads = state.data.downloads;
+    if (!downloads) return "";
+    const card = (entry, options) => {
+      if (!entry) return "";
+      return `<article class="download-card${options.primary ? " featured" : ""}">
+        ${options.tag ? `<span class="download-tag">${options.tag}</span>` : ""}
+        <h3>${options.title}</h3>
+        <p class="download-file">${escapeText(entry.file)}</p>
+        <p class="download-meta">${downloadMeta(entry)}</p>
+        <a class="download-button${options.primary ? " primary" : ""}" href="${escapeText(entry.url)}" target="_blank" rel="noreferrer">${options.label}</a>
+        <p class="download-note">${options.note}</p>
+        ${
+          entry.sha256
+            ? `<details class="checksum"><summary>SHA-256</summary><code>${escapeText(entry.sha256)}</code></details>`
+            : ""
+        }
+      </article>`;
+    };
+    return `<section class="download-hero">
+      <span class="download-kicker">Latest release · v${downloads.version}</span>
+      <h2>Download Cygnus</h2>
+      <p>Grab the installer for a normal Windows install, or run the portable build from a single file. These links always match the version in the header.</p>
+      <p class="download-foot"><a href="${escapeText(downloads.releaseUrl)}" target="_blank" rel="noreferrer">Release notes</a><span>·</span><a href="${escapeText(downloads.repo)}/releases" target="_blank" rel="noreferrer">All releases</a><span>·</span><a href="${escapeText(downloads.repo)}" target="_blank" rel="noreferrer">Source (MIT)</a></p>
+    </section>
+    <section class="download-grid">
+      ${card(downloads.setup, {
+        title: "Windows installer",
+        tag: "Recommended",
+        label: "Download installer",
+        note: "Installs for your user, adds a Start-menu shortcut, and checks for updates on launch.",
+        primary: true,
+      })}
+      ${card(downloads.portable, {
+        title: "Portable",
+        tag: "No install",
+        label: "Download portable .exe",
+        note: "Runs without installing. Keep the file anywhere; download a new one for updates.",
+      })}
+    </section>`;
+  }
+
   function pager(page) {
     const pages = flatPages();
     const index = pages.findIndex((item) => item.slug === page.slug);
@@ -84,12 +196,14 @@
     }
 
     const section = state.data.sections.find((item) => item.pages.includes(page.slug));
+    const panels = page.slug === "overview" ? homePanels() : page.slug === "download" ? downloadPanels() : "";
     doc.innerHTML = `
       <div class="doc-head">
         <span class="doc-eyebrow">${section ? section.title : page.section}</span>
         <h1>${page.title}</h1>
         ${page.description ? `<p class="doc-lede">${page.description}</p>` : ""}
       </div>
+      ${panels}
       <div class="doc-body">${page.html}</div>
       ${pager(page)}
     `;

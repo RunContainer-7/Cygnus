@@ -5,7 +5,7 @@ description: Install Cygnus, build your first app, and put it online — in abou
 
 ## Install
 
-Download the latest Windows build from [GitHub Releases](https://github.com/RunContainer-7/Cygnus/releases): either `Cygnus-Setup-*.exe` for a normal installer, or `Cygnus-Portable-*.exe` to run without installing.
+Open [Download](/download) and pick the Windows installer or the portable `.exe`. The installer is the normal choice; the portable build runs without installing.
 
 The build is unsigned, so Windows SmartScreen will warn you the first time. Click **More info**, then **Run anyway**. Cygnus is open source, so you can inspect exactly what runs.
 

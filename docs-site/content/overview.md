@@ -41,11 +41,4 @@ Installed builds keep projects in `%APPDATA%\Cygnus\workspaces`. When you run Cy
 
 Extensions, checkpoints and other app state live in the Cygnus data folder, not in your project.
 
-## Start here
-
-- [Quickstart](/quickstart) — install, build your first app, publish it.
-- [Models](/models) — hosted, on-device, local and BYOK.
-- [Publishing](/publishing) — a `.zip` or Cloudflare Pages.
-- [Troubleshooting](/troubleshooting) — when a build, a preview or a model misbehaves.
-
 Cygnus is MIT licensed. The source is on [GitHub](https://github.com/RunContainer-7/Cygnus).
