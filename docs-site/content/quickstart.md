@@ -30,6 +30,8 @@ Every reply is a new turn in the same conversation. Cygnus can inspect the files
 
 The workspace toolbar also holds **Publish**, **Export** and **Studio**. Studio is where checkpoints, design tokens, notes, data and moves live.
 
+Your apps are in the panel on the left, sorted by recent activity. Each row shows its file count and when it was created or last edited. Click the pencil to rename a project in place; star one to pin it under **Favorite apps**.
+
 ## Save a checkpoint
 
 Build turns save a checkpoint automatically, and the last 20 are kept. To snapshot on demand, open **Studio → Checkpoints** and create one. Restoring copies the saved files back into the project, so a bad turn is never permanent.

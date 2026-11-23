@@ -80,10 +80,12 @@ export async function createProject(name?: unknown): Promise<ProjectMeta> {
       if ((error as NodeJS.ErrnoException).code === "EEXIST") continue;
       throw error;
     }
+    const createdAt = new Date().toISOString();
     const meta: ProjectMeta = {
       id,
       name: cleanProjectName(name),
-      createdAt: new Date().toISOString(),
+      createdAt,
+      updatedAt: createdAt,
     };
     await fs.writeFile(path.join(dir, "meta.json"), JSON.stringify(meta, null, 2));
     return meta;
@@ -102,19 +104,41 @@ export async function projectExists(id: string): Promise<boolean> {
 
 export async function writeMeta(meta: ProjectMeta): Promise<void> {
   const dir = projectDir(meta.id);
-  await fs.writeFile(
-    path.join(dir, "meta.json"),
-    JSON.stringify(
-      {
-        id: meta.id,
-        name: meta.name,
-        createdAt: meta.createdAt,
-        ...(meta.github ? { github: meta.github } : {}),
-      },
-      null,
-      2,
-    ),
-  );
+  // Persist every field we know about. Dropping `publish` here used to lose
+  // the published address on the next save, and dropping `updatedAt` would
+  // reset the app list on every rename.
+  const normalized: ProjectMeta = {
+    id: meta.id,
+    name: meta.name,
+    createdAt: meta.createdAt,
+    updatedAt: meta.updatedAt || meta.createdAt,
+    ...(meta.github ? { github: meta.github } : {}),
+    ...(meta.publish ? { publish: meta.publish } : {}),
+  };
+  await fs.writeFile(path.join(dir, "meta.json"), JSON.stringify(normalized, null, 2));
+}
+
+/** Bump the activity date without changing anything else in the project. */
+export async function touchProject(id: string): Promise<void> {
+  try {
+    const meta = await readMeta(id);
+    const now = new Date().toISOString();
+    if (meta.updatedAt === now) return;
+    await writeMeta({ ...meta, updatedAt: now });
+  } catch {
+    // Activity metadata is a convenience; never fail a file write over it.
+  }
+}
+
+export async function renameProject(id: string, name: unknown): Promise<ProjectMeta> {
+  const meta = await readMeta(id);
+  const next: ProjectMeta = {
+    ...meta,
+    name: cleanProjectName(name),
+    updatedAt: new Date().toISOString(),
+  };
+  await writeMeta(next);
+  return next;
 }
 
 export async function deleteProject(id: string): Promise<void> {
@@ -126,6 +150,8 @@ export async function readMeta(id: string): Promise<ProjectMeta> {
   const dir = projectDir(id);
   const raw = await fs.readFile(path.join(dir, "meta.json"), "utf8");
   const parsed = JSON.parse(raw) as Partial<ProjectMeta>;
+  const createdAt =
+    typeof parsed.createdAt === "string" ? parsed.createdAt : new Date().toISOString();
   const github =
     parsed.github &&
     typeof parsed.github === "object" &&
@@ -138,13 +164,28 @@ export async function readMeta(id: string): Promise<ProjectMeta> {
             typeof parsed.github.htmlUrl === "string" ? parsed.github.htmlUrl : undefined,
         }
       : undefined;
+  const publish = parsed.publish;
+  const publishState =
+    publish &&
+    publish.provider === "cloudflare-pages" &&
+    typeof publish.projectName === "string" &&
+    typeof publish.url === "string" &&
+    typeof publish.deployedAt === "string"
+      ? {
+          provider: "cloudflare-pages" as const,
+          projectName: publish.projectName,
+          url: publish.url,
+          deployedAt: publish.deployedAt,
+        }
+      : undefined;
 
   return {
     id,
     name: typeof parsed.name === "string" ? parsed.name : "Untitled project",
-    createdAt:
-      typeof parsed.createdAt === "string" ? parsed.createdAt : new Date().toISOString(),
+    createdAt,
+    updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : createdAt,
     ...(github ? { github } : {}),
+    ...(publishState ? { publish: publishState } : {}),
   };
 }
 
@@ -212,6 +253,7 @@ export async function writeFileSafe(
   }
   await fs.mkdir(path.dirname(absolute), { recursive: true });
   await fs.writeFile(absolute, content, "utf8");
+  await touchProject(id);
   return bytes;
 }
 
@@ -222,6 +264,7 @@ export async function deleteFileSafe(id: string, relativePath: string): Promise<
   const stat = await fs.lstat(absolute);
   if (!stat.isFile()) throw new Error("Only files can be deleted.");
   await fs.unlink(absolute);
+  await touchProject(id);
 }
 
 export async function readChat(id: string): Promise<ChatMessage[]> {
@@ -240,6 +283,7 @@ export async function appendChat(id: string, message: ChatMessage): Promise<void
   const dir = projectDir(id);
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, "chat.json"), JSON.stringify({ messages }, null, 2));
+  await touchProject(id);
 }
 
 export async function listProjects(): Promise<
@@ -267,6 +311,5 @@ export async function listProjects(): Promise<
 
   return projects
     .filter((item): item is ProjectMeta & { fileCount: number } => item !== null)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 12);
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }

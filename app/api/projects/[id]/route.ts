@@ -6,6 +6,7 @@ import {
   readChat,
   readFileSafe,
   readMeta,
+  renameProject,
 } from "@/lib/workspace";
 
 export const runtime = "nodejs";
@@ -34,6 +35,24 @@ export async function GET(
     { ...meta, files: withContent, chat },
     { headers: { "Cache-Control": "no-store" } },
   );
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  if (!isValidProjectId(id) || !(await projectExists(id))) {
+    return Response.json({ error: "Project not found." }, { status: 404 });
+  }
+
+  const body = (await request.json().catch(() => ({}))) as { name?: unknown };
+  if (typeof body.name !== "string" || !body.name.trim()) {
+    return Response.json({ error: "A project name is required." }, { status: 400 });
+  }
+
+  const meta = await renameProject(id, body.name);
+  return Response.json(meta, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function DELETE(

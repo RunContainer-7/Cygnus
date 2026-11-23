@@ -41,4 +41,10 @@ Installed builds keep projects in `%APPDATA%\Cygnus\workspaces`. When you run Cy
 
 Extensions, checkpoints and other app state live in the Cygnus data folder, not in your project.
 
+## Find and manage apps
+
+The Apps panel lists every project, newest activity first. Each row shows its file count and whether it was created or edited and when. Use the pencil beside an app to rename it in place; the new name is saved to `meta.json` and survives restarts. Star an app to pin it under **Favorite apps**, and use the search box to filter a long list. There is no project limit — every folder in the workspace appears.
+
+Long prompts grow the home and chat composers up to a few lines instead of scrolling inside a one-line box. Press Enter to send, or Shift+Enter for a new line.
+
 Cygnus is MIT licensed. The source is on [GitHub](https://github.com/RunContainer-7/Cygnus).

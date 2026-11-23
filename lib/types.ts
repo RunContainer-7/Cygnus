@@ -81,6 +81,7 @@ export type ProjectMeta = {
   id: string;
   name: string;
   createdAt: string;
+  updatedAt: string;
   github?: {
     repo: string;
     branch: string;

@@ -15,6 +15,7 @@ import { isDemo, isHosted, isKeylessProvider, providerLabel } from "@/lib/provid
 import { isCygnusLocalProvider } from "@/lib/cygnus05Shared";
 import { loadMode, saveMode, type BuildMode } from "@/lib/modes";
 import type { MoveAction } from "@/lib/moves";
+import { fitTextarea } from "@/lib/textarea";
 import type {
   AgentRun,
   AskPrompt,
@@ -153,6 +154,10 @@ export default function Builder({
   useEffect(() => {
     if (atBottom) bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages, atBottom]);
+
+  useEffect(() => {
+    fitTextarea(inputRef.current, 180);
+  }, [input]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

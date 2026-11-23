@@ -17,6 +17,7 @@ type ProjectSummary = {
   id: string;
   name: string;
   createdAt: string;
+  updatedAt?: string;
   fileCount?: number;
 };
 
@@ -85,6 +86,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [renameBusy, setRenameBusy] = useState(false);
 
   const activeId = pathname.startsWith("/build/") ? pathname.split("/")[2] : null;
   const currentProject = projects.find((project) => project.id === activeId);
@@ -124,6 +128,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMobilePanelOpen(false);
     setModelMenuOpen(false);
+    setRenamingId(null);
   }, [pathname]);
 
   useEffect(() => {
@@ -161,6 +166,53 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     });
   }
 
+  function startRename(project: ProjectSummary) {
+    setRenamingId(project.id);
+    setRenameDraft(project.name);
+  }
+
+  function cancelRename() {
+    if (renameBusy) return;
+    setRenamingId(null);
+    setRenameDraft("");
+  }
+
+  async function saveRename(project: ProjectSummary) {
+    const name = renameDraft.trim();
+    if (!name || renameBusy) return;
+    setRenameBusy(true);
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        name?: string;
+        updatedAt?: string;
+        error?: string;
+      };
+      if (!response.ok) throw new Error(data.error ?? "Could not rename that app.");
+      setProjects((previous) =>
+        previous.map((item) =>
+          item.id === project.id
+            ? {
+                ...item,
+                name: data.name ?? name,
+                updatedAt: data.updatedAt ?? item.updatedAt,
+              }
+            : item,
+        ),
+      );
+      setRenamingId(null);
+      setRenameDraft("");
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Could not rename that app.");
+    } finally {
+      setRenameBusy(false);
+    }
+  }
+
   async function removeProject(project: ProjectSummary) {
     const confirmed = window.confirm(
       `Delete “${project.name}”? Its files and chat history are removed from this computer.`,
@@ -187,45 +239,105 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   function renderRow(project: ProjectSummary) {
     const favorite = favorites.includes(project.id);
+    const renaming = renamingId === project.id;
+    const activity =
+      project.updatedAt && project.updatedAt !== project.createdAt ? "edited" : "created";
     return (
       <div
-        className={`app-row ${project.id === activeId ? "active" : ""}`}
+        className={`app-row ${project.id === activeId ? "active" : ""} ${
+          renaming ? "renaming" : ""
+        }`}
         key={project.id}
       >
-        <Link
-          href={`/build/${project.id}`}
-          className="app-row-link"
-          onClick={() => setMobilePanelOpen(false)}
-        >
-          <span className={`app-avatar avatar-${avatarTone(project.id)}`}>
-            {initialsFor(project.name)}
-          </span>
-          <span className="app-row-copy">
-            <strong>{project.name}</strong>
-            <span>
-              {project.fileCount ?? 0} file{project.fileCount === 1 ? "" : "s"} ·{" "}
-              {relativeTime(project.createdAt)}
+        {renaming ? (
+          <form
+            className="app-rename"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveRename(project);
+            }}
+          >
+            <input
+              autoFocus
+              value={renameDraft}
+              onChange={(event) => setRenameDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  cancelRename();
+                }
+              }}
+              maxLength={70}
+              aria-label={`Rename ${project.name}`}
+              spellCheck={false}
+            />
+            <button
+              type="submit"
+              className="app-rename-save"
+              disabled={!renameDraft.trim() || renameBusy}
+              aria-label="Save app name"
+            >
+              <Icon name="check" size={13} />
+            </button>
+            <button
+              type="button"
+              className="app-rename-cancel"
+              onClick={cancelRename}
+              disabled={renameBusy}
+              aria-label="Cancel rename"
+            >
+              <Icon name="close" size={13} />
+            </button>
+          </form>
+        ) : (
+          <Link
+            href={`/build/${project.id}`}
+            className="app-row-link"
+            onClick={() => setMobilePanelOpen(false)}
+          >
+            <span className={`app-avatar avatar-${avatarTone(project.id)}`}>
+              {initialsFor(project.name)}
             </span>
-          </span>
-        </Link>
-        <button
-          type="button"
-          className={`app-star ${favorite ? "on" : ""}`}
-          onClick={() => toggleFavorite(project.id)}
-          aria-label={favorite ? `Unfavorite ${project.name}` : `Favorite ${project.name}`}
-          title={favorite ? "Remove from favorites" : "Add to favorites"}
-        >
-          <Icon name={favorite ? "starFilled" : "star"} size={14} />
-        </button>
-        <button
-          type="button"
-          className="app-delete"
-          onClick={() => void removeProject(project)}
-          aria-label={`Delete ${project.name}`}
-          title="Delete app"
-        >
-          <Icon name="trash" size={13} />
-        </button>
+            <span className="app-row-copy">
+              <strong>{project.name}</strong>
+              <span>
+                {project.fileCount ?? 0} file{project.fileCount === 1 ? "" : "s"} ·{" "}
+                {activity} {relativeTime(project.updatedAt ?? project.createdAt)}
+              </span>
+            </span>
+          </Link>
+        )}
+        {!renaming ? (
+          <>
+            <button
+              type="button"
+              className={`app-star ${favorite ? "on" : ""}`}
+              onClick={() => toggleFavorite(project.id)}
+              aria-label={favorite ? `Unfavorite ${project.name}` : `Favorite ${project.name}`}
+              title={favorite ? "Remove from favorites" : "Add to favorites"}
+            >
+              <Icon name={favorite ? "starFilled" : "star"} size={14} />
+            </button>
+            <button
+              type="button"
+              className="app-edit"
+              onClick={() => startRename(project)}
+              aria-label={`Rename ${project.name}`}
+              title="Rename app"
+            >
+              <Icon name="pencil" size={13} />
+            </button>
+            <button
+              type="button"
+              className="app-delete"
+              onClick={() => void removeProject(project)}
+              aria-label={`Delete ${project.name}`}
+              title="Delete app"
+            >
+              <Icon name="trash" size={13} />
+            </button>
+          </>
+        ) : null}
       </div>
     );
   }

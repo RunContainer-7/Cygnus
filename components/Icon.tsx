@@ -28,6 +28,7 @@ export type IconName =
   | "check"
   | "chevronDown"
   | "sliders"
+  | "pencil"
   | "trash";
 
 const PATHS: Record<IconName, ReactNode> = {
@@ -161,6 +162,12 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="12" cy="6" r="2" />
       <circle cx="16" cy="12" r="2" />
       <circle cx="8" cy="18" r="2" />
+    </>
+  ),
+  pencil: (
+    <>
+      <path d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17Z" />
+      <path d="m13.5 5.5 3 3" />
     </>
   ),
 };

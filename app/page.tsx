@@ -11,6 +11,7 @@ import { useProvider } from "@/components/ProviderContext";
 import TemplateCard from "@/components/TemplateCard";
 import { loadMode, saveMode, type BuildMode } from "@/lib/modes";
 import { isDemo, providerLabel } from "@/lib/providers";
+import { fitTextarea } from "@/lib/textarea";
 import { TEMPLATES } from "@/lib/templates";
 
 const EXAMPLES = [
@@ -41,6 +42,10 @@ export default function HomePage() {
     window.history.replaceState(null, "", window.location.pathname);
     window.setTimeout(() => promptRef.current?.focus(), 120);
   }, []);
+
+  useEffect(() => {
+    fitTextarea(promptRef.current, 260);
+  }, [prompt]);
 
   async function start() {
     const text = prompt.trim();
